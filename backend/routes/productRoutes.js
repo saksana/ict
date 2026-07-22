@@ -1,0 +1,13 @@
+const express = require('express');
+const router = express.Router();
+const productController = require('../controllers/productController');
+const verifyToken = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
+
+// ໃຊ້ upload.single('image') ເພື່ອຮັບຮູບພາບ 1 ໃບ ຈາກ key ທີ່ຊື່ວ່າ 'image'
+router.post('/', verifyToken, upload.single('image'), productController.createProduct);
+router.get('/', productController.getProducts); // ບາງລະບົບອາດຈະເປີດໃຫ້ຄົນທົ່ວໄປເບິ່ງສິນຄ້າໄດ້ໂດຍບໍ່ຕ້ອງ Login
+router.put('/:id', verifyToken, upload.single('image'), productController.updateProduct);
+router.delete('/:id', verifyToken, productController.deleteProduct);
+
+module.exports = router;
