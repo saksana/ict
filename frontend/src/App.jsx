@@ -14,41 +14,58 @@ import NotfoundPage from './pages/NotfoundPage';
 import SalePage from './pages/SalePage';
 import SaleHistoryPage from "./pages/SaleHistoryPage";
 
-// ສ້າງ Component ໜ້າອື່ນໆແບບຊົ່ວຄາວ (Placeholder) ເພື່ອໃຫ້ທົດສອບ Link ໄດ້
+// Placeholders
 const Dashboard = () => <div className="text-2xl font-bold pt-20">ໜ້າ Dashboard (ກຳລັງພັດທະນາ)</div>;
-const POSPage = () => <div className="text-2xl font-bold  pt-20">ໜ້າຂາຍສິນຄ້າ POS (ຂັ້ນຕອນຖັດໄປ)</div>;
-const StockPage = () => <div className="text-2xl font-bold  pt-20">ໜ້າສະຕັອກສິນຄ້າ</div>;
-const ReportPage = () => <div className="text-2xl font-bold  pt-20">ໜ້າລາຍງານການຂາຍ</div>;
+const StockPage = () => <div className="text-2xl font-bold pt-20">ໜ້າສະຕັອກສິນຄ້າ</div>;
+const ReportPage = () => <div className="text-2xl font-bold pt-20">ໜ້າລາຍງານການຂາຍ</div>;
+
+// Component ສຳລັບ Redirect ໜ້າທຳອິດ (`/`) ຕາມ Role
+const HomeRedirect = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return <Navigate to="/login" replace />;
+
+  try {
+    const decoded = jwtDecode(token);
+    // ຖ້າເປັນ user ໃຫ້ໄປ /pos ຖ້າເປັນ admin ໃຫ້ໄປ /dashboard
+    return decoded.role === 'admin' ? <Navigate to="/dashboard" replace /> : <Navigate to="/pos" replace />;
+  } catch (error) {
+    return <Navigate to="/login" replace />;
+  }
+};
 
 function App() {
   useEffect(() => {
-        const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token');
 
-        if (token) {
-            const decoded = jwtDecode(token);
-            const currentTime = Date.now() / 1000; // ປ່ຽນເປັນວິນາທີ
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        const currentTime = Date.now() / 1000;
 
-            // ກວດສອບວ່າເວລາປະຈຸບັນ ກາຍເວລາໝົດອາຍຸຂອງ Token ຫຼືຍັງ
-            if (decoded.exp < currentTime) {
-                handleLogout();
-            } else {
-                // ຕັ້ງເວລາໃຫ້ Logout ອັດຕະໂນມັດເມື່ອຮອດເວລາໝົດອາຍຸທີ່ເຫຼືອ
-                const timeRemaining = (decoded.exp - currentTime) * 1000;
-                setTimeout(() => {
-                    handleLogout();
-                }, timeRemaining);
-            }
+        if (decoded.exp < currentTime) {
+          handleLogout();
+        } else {
+          const timeRemaining = (decoded.exp - currentTime) * 1000;
+          const timer = setTimeout(() => {
+            handleLogout();
+          }, timeRemaining);
+          return () => clearTimeout(timer);
         }
-    }, []);
+      } catch (err) {
+        handleLogout();
+      }
+    }
+  }, []);
 
-    const handleLogout = () => {
-        alert("Session ຂອງທ່ານໝົດອາຍຸແລ້ວ");
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-    };
+  const handleLogout = () => {
+    alert("Session ຂອງທ່ານໝົດອາຍຸແລ້ວ");
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
+
   return (
     <Router>
-      {/* Container ສຳລັບສະແດງການແຈ້ງເຕືອນ Toast */}
       <ToastContainer 
         position="top-right" 
         autoClose={3000} 
@@ -63,27 +80,31 @@ function App() {
       />
 
       <Routes>
-        {/* 1. Public Route: ໜ້າ Login ໃຜກໍ່ເຂົ້າເຖິງໄດ້ */}
+        {/* 1. Public Route */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* 2. Protected Routes: ກຸ່ມໜ້າທີ່ຕ້ອງ Login ກ່ອນຈຶ່ງເຂົ້າໄດ້ */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<MainLayout />}>
-            {/* ເສັ້ນທາງຍ່ອຍທີ່ຈະໄປສະແດງໃນ Outlet ຂອງ MainLayout */}
+        {/* 2. Protected Routes */}
+        <Route element={<MainLayout />}>
+          
+          {/* A. ໜ້າທີ່ເຂົ້າໄດ້ທັງ Admin ແລະ User */}
+          <Route element={<ProtectedRoute allowedRoles={['Admin', 'Sale']} />}>
+            <Route path="/pos" element={<SalePage />} />
+            <Route path="/" element={<HomeRedirect />} />
+          </Route>
+
+          {/* B. ໜ້າທີ່ເຂົ້າໄດ້ສະເພາະ Admin ເທົ່ານັ້ນ */}
+          <Route element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/products" element={<ProductPage />} />
-            <Route path="/pos" element={<SalePage/>} />
             <Route path="/stock" element={<StockPage />} />
             <Route path="/reports" element={<ReportPage />} />
             <Route path="/sale-history" element={<SaleHistoryPage />} />
-            
-            {/* ຖ້າເຂົ້າໜ້າທຳອິດໃຫ້ Redirect ໄປ Dashboard */}
-            <Route path="/" element={<Navigate to="/dashboard" />} />
           </Route>
+
         </Route>
 
-        {/* 3. Fallback Route: ຖ້າພິມ URL ຜິດ ໃຫ້ດີດໄປໜ້າ Login */}
-        <Route path="*" element={<NotfoundPage/>} />
+        {/* 3. Fallback Route */}
+        <Route path="*" element={<NotfoundPage />} />
       </Routes>
     </Router>
   );

@@ -3,15 +3,21 @@ import { Link, useLocation } from "react-router-dom";
 export default function Sidebar({ isOpen, setIsOpen }) {
   const location = useLocation();
   const [isResize, setIsResize] = useState(false);
+  const user = JSON.parse(localStorage.getItem("user")) || {};
+  const userRole = user.role;
 
   const menuItems = [
-    { title: "Dashboard", icon: "fas fa-chart-line", path: "/dashboard" },
-    { title: "ຂາຍສິນຄ້າ (POS)", icon: "fas fa-shopping-cart", path: "/pos" },
-    { title: "ຈັດການສິນຄ້າ", icon: "fas fa-box", path: "/products" },
-    { title: "ສະຕັອກສິນຄ້າ", icon: "fas fa-warehouse", path: "/stock" },
-    { title: "ລາຍງານ", icon: "fas fa-file-invoice-dollar", path: "/reports" },
-    { title: "ຕັ້ງຄ່າ", icon: "fas fa-cog", path: "/settings" },
+    { title: "Dashboard", icon: "fas fa-chart-line", path: "/dashboard", roles: ["Admin"] },
+    { title: "ຂາຍສິນຄ້າ (POS)", icon: "fas fa-shopping-cart", path: "/pos", roles: ["Admin", "Sale"] },
+    { title: "ຈັດການສິນຄ້າ", icon: "fas fa-box", path: "/products", roles: ["admin"] },
+    { title: "ສະຕັອກສິນຄ້າ", icon: "fas fa-warehouse", path: "/stock", roles: ["Admin"] },
+    { title: "ລາຍງານ", icon: "fas fa-file-invoice-dollar", path: "/reports", roles: ["Admin"] },
+    { title: "ຕັ້ງຄ່າ", icon: "fas fa-cog", path: "/settings", roles: ["Admin"] },
   ];
+
+  const filteredMenuItems = menuItems.filter((item) =>
+    item.roles.includes(userRole)
+  );
 
   const resize = () => {
     setIsResize(!isResize);
@@ -62,7 +68,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         </div>
 
         <nav className="mt-6 px-3">
-          {menuItems.map((item, index) => (
+          {filteredMenuItems.map((item, index) => (
             <Link
               key={index}
               to={item.path}

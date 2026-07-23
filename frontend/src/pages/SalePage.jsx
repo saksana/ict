@@ -66,7 +66,7 @@ const SalePage = () => {
 
   const fetchProducts = async () => {
     try {
-      const res = await productApi.getProducts(search);
+      const res = await productApi.getAllProducts(search);
       setProducts(res.data.data || res.data);
     } catch (err) {
       toast.error("ໂຫລດສິນຄ້າບໍ່ສຳເລັດ");

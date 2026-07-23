@@ -1,6 +1,6 @@
 import api from './axios';
 
-//export const getProducts = (search = '') => api.get(`/products?search=${search}`);
+export const getAllProducts = (search = '') => api.get(`/products/getall?search=${search}`);
 export const getProducts = (params) => api.get('/products', { params });
 export const deleteProduct = (id) => api.delete(`/products/${id}`);
 export const createProduct = (formData) => api.post('/products', formData, {
