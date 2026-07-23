@@ -100,7 +100,6 @@ function App() {
             <Route path="/reports" element={<ReportPage />} />
             <Route path="/sale-history" element={<SaleHistoryPage />} />
           </Route>
-
         </Route>
 
         {/* 3. Fallback Route */}

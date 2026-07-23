@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/orderController');
-const verifyToken = require('../middleware/authMiddleware');
+const auth = require('../middleware/authMiddleware');
 
-router.get('/', verifyToken, orderController.getOrder);
-router.post('/', verifyToken, orderController.createOrder);
-router.put('/cancle/:id',verifyToken,orderController.cancelOrder);
+router.get('/', auth.verifyToken, orderController.getOrder);
+router.post('/', auth.verifyToken, orderController.createOrder);
+router.put('/cancle/:id', auth.verifyToken, orderController.cancelOrder);
 
 module.exports = router;
