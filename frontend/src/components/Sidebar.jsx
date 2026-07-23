@@ -79,7 +79,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               }`}
             >
               <i
-                className={`${item.icon} text-lg min-w-[32px] text-center`}
+                className={`${item.icon} text-lg min-w-8 text-center`}
               ></i>
               <span
                 className={`ml-4 text-sm whitespace-nowrap transition-all duration-500 ease-in-out overflow-hidden ${
