@@ -91,7 +91,7 @@ exports.login = async (req, res) => {
         const token = jwt.sign(
             { id: user.user_id, username: user.username, role: user.role },
             process.env.JWT_SECRET, // ໃຊ້ Key ຈາກ .env 
-            { expiresIn: '4h' } // Token ມີອາຍຸ 4 ມື້
+            { expiresIn: '4h' } // Token ມີອາຍຸ 4 ຊົ່ວໂມງ
         );
 
         // 5. ສົ່ງຂໍ້ມູນກັບໄປ (ຍົກເວັ້ນ Password)

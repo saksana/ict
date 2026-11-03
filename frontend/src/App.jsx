@@ -1,33 +1,48 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import '@fortawesome/fontawesome-free/css/all.min.css';
-import { useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
+import { useEffect } from "react";
+import { jwtDecode } from "jwt-decode";
 
 // Import Pages & Layouts
-import LoginPage from './pages/LoginPage';
-import ProductPage from './pages/ProductPage';
-import MainLayout from './layouts/MainLayout';
-import ProtectedRoute from './components/ProtectedRoute';
-import NotfoundPage from './pages/NotfoundPage';
-import SalePage from './pages/SalePage';
+import LoginPage from "./pages/LoginPage";
+import ProductPage from "./pages/ProductPage";
+import MainLayout from "./layouts/MainLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import NotfoundPage from "./pages/NotfoundPage";
+import SalePage from "./pages/SalePage";
 import SaleHistoryPage from "./pages/SaleHistoryPage";
+import DashboardPage from "./pages/DashboardPage";
+import StockPage from "./pages/StockPage";
+import ManagePage from "./pages/ManagePage";
+import CategoryPage from "./pages/CategoryPage";
+import CustomerPage from "./pages/CustomerPage";
+import SupplierPage from "./pages/SupplierPage";
+import ImportPage from "./pages/ImportPage";
+import SettingPage from "./pages/SettingPage";
+import ReportPage from "./pages/ReportPage"
 
-// Placeholders
-const Dashboard = () => <div className="text-2xl font-bold pt-20">ໜ້າ Dashboard (ກຳລັງພັດທະນາ)</div>;
-const StockPage = () => <div className="text-2xl font-bold pt-20">ໜ້າສະຕັອກສິນຄ້າ</div>;
-const ReportPage = () => <div className="text-2xl font-bold pt-20">ໜ້າລາຍງານການຂາຍ</div>;
+
 
 // Component ສຳລັບ Redirect ໜ້າທຳອິດ (`/`) ຕາມ Role
 const HomeRedirect = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   if (!token) return <Navigate to="/login" replace />;
 
   try {
     const decoded = jwtDecode(token);
     // ຖ້າເປັນ user ໃຫ້ໄປ /pos ຖ້າເປັນ admin ໃຫ້ໄປ /dashboard
-    return decoded.role === 'admin' ? <Navigate to="/dashboard" replace /> : <Navigate to="/pos" replace />;
+    return decoded.role === "admin" ? (
+      <Navigate to="/dashboard" replace />
+    ) : (
+      <Navigate to="/pos" replace />
+    );
   } catch (error) {
     return <Navigate to="/login" replace />;
   }
@@ -35,7 +50,7 @@ const HomeRedirect = () => {
 
 function App() {
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
 
     if (token) {
       try {
@@ -59,16 +74,16 @@ function App() {
 
   const handleLogout = () => {
     alert("Session ຂອງທ່ານໝົດອາຍຸແລ້ວ");
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/login";
   };
 
   return (
     <Router>
-      <ToastContainer 
-        position="top-right" 
-        autoClose={3000} 
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick
@@ -85,20 +100,25 @@ function App() {
 
         {/* 2. Protected Routes */}
         <Route element={<MainLayout />}>
-          
           {/* A. ໜ້າທີ່ເຂົ້າໄດ້ທັງ Admin ແລະ User */}
-          <Route element={<ProtectedRoute allowedRoles={['Admin', 'Sale']} />}>
+          <Route element={<ProtectedRoute allowedRoles={["Admin", "Sale"]} />}>
             <Route path="/pos" element={<SalePage />} />
             <Route path="/" element={<HomeRedirect />} />
           </Route>
 
           {/* B. ໜ້າທີ່ເຂົ້າໄດ້ສະເພາະ Admin ເທົ່ານັ້ນ */}
-          <Route element={<ProtectedRoute allowedRoles={['Admin']} />}>
-            <Route path="/dashboard" element={<Dashboard />} />
+          <Route element={<ProtectedRoute allowedRoles={["Admin"]} />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/products" element={<ProductPage />} />
             <Route path="/stock" element={<StockPage />} />
+            <Route path="/manage" element={<ManagePage />} />
             <Route path="/reports" element={<ReportPage />} />
             <Route path="/sale-history" element={<SaleHistoryPage />} />
+            <Route path="/categories" element={<CategoryPage />} />
+            <Route path="/customers" element={<CustomerPage />} />
+            <Route path="/suppliers" element={<SupplierPage />} />
+            <Route path="/imports" element={<ImportPage />} />
+            <Route path="/settings" element={<SettingPage />} />
           </Route>
         </Route>
 

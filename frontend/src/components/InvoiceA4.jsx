@@ -1,28 +1,52 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import * as shopApi from "../api/shopApi"; // 👈 ນຳເຂົ້າ shopApi ເພື່ອດຶງຂໍ້ມູນຮ້ານ
 
 const InvoiceA4 = React.forwardRef(({ orderData, customer, cartItems }, ref) => {
+  const [shopInfo, setShopInfo] = useState({
+    shop_name: "MY_SHOP",
+    phone: "",
+    email: "",
+    address: "",
+  });
+
+  // ດຶງຂໍ້ມູນຮ້ານຄ້າຈາກ DB ມາສະແດງໃນໃບບິນ
+  useEffect(() => {
+    const fetchShopInfo = async () => {
+      try {
+        const res = await shopApi.getShop();
+        if (res.data?.success && res.data.data) {
+          setShopInfo(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load shop info for invoice:", err);
+      }
+    };
+    fetchShopInfo();
+  }, []);
+
   const currentDate = new Date().toLocaleString("lo-LA", {
     timeZone: "Asia/Vientiane",
     dateStyle: "medium",
-    timeStyle: "short"
+    timeStyle: "short",
   });
 
   return (
-    <div 
-      ref={ref} 
+    <div
+      ref={ref}
       className="p-10 bg-white text-black font-lao w-[210mm] min-h-[297mm] mx-auto flex flex-col justify-between"
       style={{ boxSizing: "border-box" }}
     >
-      {/* ສ່ວນເທິງ: Header ແລະ ຂໍ້ມູນບໍລິສັດ */}
+      {/* ສ່ວນເທິງ: Header ແລະ ຂໍ້ມູນບໍລິສັດ (ດຶງຈາກ Setting) */}
       <div>
         <div className="flex justify-between items-start border-b-2 border-gray-800 pb-5">
           <div className="space-y-1">
             <h1 className="text-2xl font-black text-orange-600 uppercase tracking-wide">
-              E-Commerce MVP Shop
+              {shopInfo.shop_name}
             </h1>
-            <p className="text-xs text-gray-600">ໜ່ວຍ 15, ບ້ານ ດົງໂດກ, ເມືອງ ໄຊທານີ, ນະຄອນຫຼວງວຽງຈັນ</p>
-            <p className="text-xs text-gray-600">ໂທ: 020 5555 XXXXX | Email: info@mvpshop.com</p>
-            <p className="text-xs text-gray-600">ເລກປະຈຳຕົວຜູ້ເສຍພາສີ: 9999999999</p>
+            <p className="text-xs text-gray-600">{shopInfo.address || "-"}</p>
+            <p className="text-xs text-gray-600">
+              ໂທ: {shopInfo.phone || "-"} | Email: {shopInfo.email || "-"}
+            </p>
           </div>
           <div className="text-right space-y-1">
             <h2 className="text-xl font-black text-gray-800 tracking-tight">
@@ -30,10 +54,13 @@ const InvoiceA4 = React.forwardRef(({ orderData, customer, cartItems }, ref) => 
             </h2>
             <p className="text-xs">
               <span className="font-bold text-gray-500">ເລກທີ / No:</span>{" "}
-              <span className="font-bold">INV-{Date.now().toString().slice(-6)}</span>
+              <span className="font-bold">
+                INV-{orderData?.order_id || Date.now().toString().slice(-6)}
+              </span>
             </p>
             <p className="text-xs">
-              <span className="font-bold text-gray-500">ວັນທີ / Date:</span> {currentDate}
+              <span className="font-bold text-gray-500">ວັນທີ / Date:</span>{" "}
+              {orderData?.created_at || currentDate}
             </p>
           </div>
         </div>
@@ -49,8 +76,12 @@ const InvoiceA4 = React.forwardRef(({ orderData, customer, cartItems }, ref) => 
             </p>
             {customer && (
               <>
-                <p><span className="text-gray-500">ເມືອງ/ແຂວງ:</span> {customer.address || "-"}</p>
-                <p><span className="text-gray-500">ໂທ / Tel:</span> {customer.phone || "-"}</p>
+                <p>
+                  <span className="text-gray-500">ທີ່ຢູ່:</span> {customer.address || "-"}
+                </p>
+                <p>
+                  <span className="text-gray-500">ໂທ / Tel:</span> {customer.phone || "-"}
+                </p>
               </>
             )}
           </div>
@@ -61,11 +92,20 @@ const InvoiceA4 = React.forwardRef(({ orderData, customer, cartItems }, ref) => 
             <p>
               <span className="text-gray-500">ຊ່ອງທາງ:</span>{" "}
               <span className="font-bold text-orange-600">
-                {orderData.payment_method === "cash" ? "Cash (ເງິນສົດ)" : "QR Bank Transfer (ໂອນເງິນ)"}
+                {orderData?.payment_method === "cash"
+                  ? "Cash (ເງິນສົດ)"
+                  : orderData?.payment_method === "credit"
+                  ? "Credit (ຕິດໜີ້)"
+                  : "QR Bank Transfer (ໂອນເງິນ)"}
               </span>
             </p>
-            <p><span className="text-gray-500">ພະນັກງານຂາຍ:</span> Admin (ID: 1)</p>
-            <p><span className="text-gray-500">ສະຖານະ:</span> ຊຳລະແລ້ວ (Paid)</p>
+            <p>
+              <span className="text-gray-500">ພະນັກງານຂາຍ:</span> Admin (ID: {orderData?.user_id || 1})
+            </p>
+            <p>
+              <span className="text-gray-500">ສະຖານະ:</span>{" "}
+              {orderData?.payment_status === "unpaid" ? "ຄ້າງຊຳລະ (Unpaid)" : "ຊຳລະແລ້ວ (Paid)"}
+            </p>
           </div>
         </div>
 
@@ -82,16 +122,24 @@ const InvoiceA4 = React.forwardRef(({ orderData, customer, cartItems }, ref) => 
             </tr>
           </thead>
           <tbody>
-            {cartItems.map((item, index) => (
-              <tr key={index} className="border-b border-gray-100 hover:bg-gray-50/50">
-                <td className="p-3 text-center text-gray-500">{index + 1}</td>
-                <td className="p-3 font-mono text-gray-600">P-{item.product_id}</td>
-                <td className="p-3 font-bold text-gray-800">{item.product_name}</td>
-                <td className="p-3 text-center font-bold">{item.qty}</td>
-                <td className="p-3 text-right">{Number(item.unit_price).toLocaleString()} ກີບ</td>
-                <td className="p-3 text-right font-black">{Number(item.subtotal).toLocaleString()} ກີບ</td>
+            {cartItems && cartItems.length > 0 ? (
+              cartItems.map((item, index) => (
+                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50/50">
+                  <td className="p-3 text-center text-gray-500">{index + 1}</td>
+                  <td className="p-3 font-mono text-gray-600">P-{item.product_id}</td>
+                  <td className="p-3 font-bold text-gray-800">{item.product_name}</td>
+                  <td className="p-3 text-center font-bold">{item.qty}</td>
+                  <td className="p-3 text-right">{Number(item.unit_price).toLocaleString()} ກີບ</td>
+                  <td className="p-3 text-right font-black">{Number(item.subtotal).toLocaleString()} ກີບ</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="6" className="p-4 text-center text-gray-400">
+                  ບໍ່ມີລາຍການສິນຄ້າ
+                </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -110,25 +158,25 @@ const InvoiceA4 = React.forwardRef(({ orderData, customer, cartItems }, ref) => 
           <div className="w-80 space-y-2 text-xs font-bold text-gray-700">
             <div className="flex justify-between px-2">
               <span className="font-normal text-gray-500">ລວມເປັນເງິນ (Sub Total):</span>
-              <span>{Number(orderData.total_amount).toLocaleString()} ກີບ</span>
+              <span>{Number(orderData?.total_amount || 0).toLocaleString()} ກີບ</span>
             </div>
             <div className="flex justify-between px-2 text-red-600">
               <span className="font-normal">ສ່ວນຫຼຸດ (Discount):</span>
-              <span>-{Number(orderData.discount).toLocaleString()} ກີບ</span>
+              <span>-{Number(orderData?.discount || 0).toLocaleString()} ກີບ</span>
             </div>
             <div className="flex justify-between text-base font-black bg-orange-50 text-orange-600 p-3 rounded-xl border border-orange-100">
               <span>ຍອດຊຳລະສຸດທິ:</span>
-              <span>{Number(orderData.net_amount).toLocaleString()} ກີບ</span>
+              <span>{Number(orderData?.net_amount || 0).toLocaleString()} ກີບ</span>
             </div>
-            
+
             <div className="pt-2 space-y-1 text-[11px] font-normal text-gray-500 px-2">
               <div className="flex justify-between">
                 <span>ຮັບເງິນມາ (Amount Received):</span>
-                <span>{Number(orderData.amount_paid).toLocaleString()} ກີບ</span>
+                <span>{Number(orderData?.amount_paid || 0).toLocaleString()} ກີບ</span>
               </div>
               <div className="flex justify-between text-green-600 font-bold">
                 <span>ເງິນທອນ (Change):</span>
-                <span>{Number(orderData.change_amount).toLocaleString()} ກີບ</span>
+                <span>{Number(orderData?.change_amount || 0).toLocaleString()} ກີບ</span>
               </div>
             </div>
           </div>

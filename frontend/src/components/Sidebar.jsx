@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 export default function Sidebar({ isOpen, setIsOpen }) {
+
   const location = useLocation();
   const [isResize, setIsResize] = useState(false);
   const user = JSON.parse(localStorage.getItem("user")) || {};
@@ -10,9 +11,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     { title: "Dashboard", icon: "fas fa-chart-line", path: "/dashboard", roles: ["Admin"] },
     { title: "ຂາຍສິນຄ້າ (POS)", icon: "fas fa-shopping-cart", path: "/pos", roles: ["Admin", "Sale"] },
     { title: "ຈັດການສິນຄ້າ", icon: "fas fa-box", path: "/products", roles: ["Admin"] },
-    { title: "ສະຕັອກສິນຄ້າ", icon: "fas fa-warehouse", path: "/stock", roles: ["Admin"] },
-    { title: "ລາຍງານ", icon: "fas fa-file-invoice-dollar", path: "/reports", roles: ["Admin"] },
-    { title: "ຕັ້ງຄ່າ", icon: "fas fa-cog", path: "/settings", roles: ["Admin"] },
+    { title: "ສາງສິນຄ້າ", icon: "fas fa-warehouse", path: "/stock", roles: ["Admin"] },
+    { title: "ຈັດການຂໍ້ມູນ", icon: "fas fa-th-large", path: "/manage", roles: ["Admin"] },
+    { title: "ລາຍງານ", icon: "fas fa-file-invoice-dollar", path: "/reports", roles: ["Admin"] }, 
+    { title: "ຕັ້ງຄ່າຮ້ານຄ້າ", icon: "fas fa-cog", path: "/settings", roles: ["Admin"] },
+    
   ];
 
   const filteredMenuItems = menuItems.filter((item) =>

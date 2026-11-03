@@ -1,89 +1,101 @@
-const db = require('../config/db');
+const db = require("../config/db");
 
-exports.getDashboardSummary = async (req, res) => {
-    try {
-        // 1. ຍອດຂາຍທັງໝົດ ແລະ ກຳໄລ (ຄິດໄລ່ຈາກ ລາຄາຂາຍ - ລາຄາຕົ້ນທຶນ)
-        const salesSql = `
-            SELECT 
-                SUM(d.subtotal) as total_sales,
-                SUM(d.subtotal - (p.cost_price * d.qty)) as total_profit,
-                COUNT(DISTINCT o.order_id) as total_orders
-            FROM tb_order_detail d
-            JOIN tb_order o ON d.order_id = o.order_id
-            JOIN tb_product p ON d.product_id = p.product_id
-        `;
-        const [sales] = await db.query(salesSql);
-
-        // 2. ສິນຄ້າໃກ້ໝົດ (Stock ຕ່ຳກວ່າ 10 ຊິ້ນ)
-        const [lowStock] = await db.query("SELECT product_name, stock_qty FROM tb_product WHERE stock_qty <= 10 ORDER BY stock_qty ASC");
-
-        // 3. ຍອດຂາຍແຍກຕາມວັນ (7 ວັນຫຼ້າສຸດ)
-        const dailySql = `
-            SELECT DATE(created_at) as date, SUM(net_amount) as daily_total
-            FROM tb_order
-            GROUP BY DATE(created_at)
-            ORDER BY date DESC LIMIT 7
-        `;
-        const [dailySales] = await db.query(dailySql);
-
-        res.json({
-            summary: sales[0],
-            lowStock: lowStock,
-            dailyCharts: dailySales
-        });
-    } catch (err) {
-        res.status(500).json({ message: "Error fetching dashboard", error: err.message });
+// 1. ລາຍງານຍອດຂາຍ (ປະຈຳວັນ, ເດືອນ, ປີ)
+exports.getSalesReport = async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    let sql = `
+      SELECT o.order_id, o.order_no, o.total_amount, o.discount, o.net_amount, o.created_at,
+             c.customer_name, u.fullname as staff_name
+      FROM tb_order o
+      LEFT JOIN tb_customer c ON o.customer_id = c.customer_id
+      LEFT JOIN tb_user u ON o.user_id = u.user_id
+    `;
+    let params = [];
+    if (start_date && end_date) {
+      sql += ` WHERE DATE(o.created_at) BETWEEN ? AND ?`;
+      params = [start_date, end_date];
     }
+    sql += ` ORDER BY o.created_at DESC`;
+
+    const [rows] = await db.query(sql, params);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// 4. ລາຍງານການເຄື່ອນໄຫວສະຕັອກ (In/Out/Adjust)
-exports.getStockMovement = async (req, res) => {
-    try {
-        const sql = `
-            SELECT t.*, p.product_name, u.fullname as staff_name
-            FROM tb_stock_transactions t
-            JOIN tb_product p ON t.product_id = p.product_id
-            JOIN tb_user u ON t.user_id = u.user_id
-            ORDER BY t.created_at DESC
-        `;
-        const [rows] = await db.query(sql);
-        res.json(rows);
-    } catch (err) {
-        res.status(500).json({ message: "Error fetching movement", error: err.message });
-    }
+// 2. ລາຍງານສິນຄ້າຂາຍດີ (Top Selling Products)
+exports.getTopProductsReport = async (req, res) => {
+  try {
+    const sql = `
+      SELECT p.product_id, p.product_name, p.barcode, 
+             SUM(od.qty) as total_qty_sold, 
+             SUM(od.subtotal) as total_revenue
+      FROM tb_order_detail od
+      JOIN tb_product p ON od.product_id = p.product_id
+      GROUP BY p.product_id, p.product_name, p.barcode
+      ORDER BY total_qty_sold DESC
+      LIMIT 50
+    `;
+    const [rows] = await db.query(sql);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// 5. ປະຫວັດການຂາຍແບບລະອຽດ
-exports.getSalesHistory = async (req, res) => {
-    try {
-        const sql = `
-            SELECT o.*, c.customer_name, u.fullname as seller_name, p.method as payment_method
-            FROM tb_order o
-            LEFT JOIN tb_customer c ON o.customer_id = c.customer_id
-            LEFT JOIN tb_user u ON o.user_id = u.user_id
-            LEFT JOIN tb_payment p ON o.order_id = p.order_id
-            ORDER BY o.created_at DESC
-        `;
-        const [rows] = await db.query(sql);
-        res.json(rows);
-    } catch (err) {
-        res.status(500).json({ message: "Error fetching history", error: err.message });
-    }
+// 3. ລາຍງານສິນຄ້າໃກ້ໝົດสต็อก (Low Stock)
+exports.getLowStockReport = async (req, res) => {
+  try {
+    const sql = `
+      SELECT p.product_id, p.barcode, p.product_name, p.stock_qty, p.cost_price, p.sale_price, c.category_name
+      FROM tb_product p
+      LEFT JOIN tb_category c ON p.category_id = c.category_id
+      WHERE p.stock_qty <= 5
+      ORDER BY p.stock_qty ASC
+    `;
+    const [rows] = await db.query(sql);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// 6. ດຶງລາຍລະອຽດສິນຄ້າພາຍໃນບິນ (ສຳລັບເບິ່ງລາຍລະອຽດ ແລະ Reprint)
-exports.getSalesHistoryDetail = async (req, res) => {
-    const { order_id } = req.params;
-    try {
-        const sql = `
-            SELECT d.*, p.product_name, p.unit
-            FROM tb_order_detail d
-            JOIN tb_product p ON d.product_id = p.product_id
-            WHERE d.order_id = ?
-        `;
-        const [rows] = await db.query(sql, [order_id]);
-        res.json({ success: true, items: rows });
-    } catch (err) {
-        res.status(500).json({ message: "Error fetching order details", error: err.message });
-    }
+// 4. ລາຍງານການນຳເຂົ້າສິນຄ້າ (Stock IN Transactions)
+exports.getStockInReport = async (req, res) => {
+  try {
+    const sql = `
+      SELECT st.stockt_id, st.quantity, st.comment, st.created_at,
+             p.product_name, p.barcode, u.fullname as staff_name
+      FROM tb_stock_transactions st
+      JOIN tb_product p ON st.product_id = p.product_id
+      LEFT JOIN tb_user u ON st.user_id = u.user_id
+      WHERE st.type = 'IN'
+      ORDER BY st.created_at DESC
+    `;
+    const [rows] = await db.query(sql);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// 5. ລາຍງານຂໍ້ມູນລູກຄ້າທີ່ຊື້ສິນຄ້າ (Customer Purchase Summary)
+exports.getCustomerReport = async (req, res) => {
+  try {
+    const sql = `
+      SELECT c.customer_id, c.customer_name, c.phone, c.address, c.points,
+             COUNT(o.order_id) as total_orders,
+             COALESCE(SUM(o.net_amount), 0) as total_spent
+      FROM tb_customer c
+      LEFT JOIN tb_order o ON c.customer_id = o.customer_id
+      GROUP BY c.customer_id, c.customer_name, c.phone, c.address, c.points
+      ORDER BY total_spent DESC
+    `;
+    const [rows] = await db.query(sql);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };

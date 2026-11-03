@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ທົດສອບ Route ພື້ນຖານ
-app.get("/api", (req, res) => {
+app.get("/", (req, res) => {
   res.send("E-commerce API is running...");
 });
 
@@ -28,6 +28,9 @@ app.use("/api/suppliers", require("./routes/supplierRoutes"));
 app.use("/api/orders", require("./routes/orderRoutes"));
 app.use("/api/stock", require("./routes/stockRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
+app.use("/api/import", require("./routes/importRoute"));
+app.use("/api/shop", require("./routes/shopRoute"));
+app.use("/api/dashboard", require("./routes/dashboardRoute"));
 
 app.use((req, res) => {
   res.status(404).json({

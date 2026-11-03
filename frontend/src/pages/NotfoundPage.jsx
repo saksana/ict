@@ -33,7 +33,7 @@ function NotfoundPage() {
 
         <div class="w-full md:w-1/2 flex justify-center">
           <img
-            src="https://illustrations.popsy.co/gray/crashed-error.svg"
+            src="https://yoast.com/app/uploads/2015/08/404_error_checking_FI.png"
             alt="404 Illustration"
             class="max-w-full h-auto w-[400px] md:w-[500px]"
           />

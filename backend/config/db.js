@@ -30,6 +30,19 @@ async function initDatabase() {
 
     // 3. ລາຍຊື່ Tables ທີ່ຕ້ອງການສ້າງ
     const tables = [
+
+      // . Table ຮ້ານຄ້າ (ເພີ່ມໃໝ່)
+      `
+            CREATE TABLE IF NOT EXISTS tb_shop (
+                shop_id int PRIMARY KEY AUTO_INCREMENT,
+                shop_name varchar(100),
+                phone varchar(20) UNIQUE,
+                email varchar(50) UNIQUE,
+                address text,
+                created_at timestamp DEFAULT (now())
+            );
+        `,
+      `INSERT IGNORE INTO tb_shop(shop_name, phone, email, address) VALUES ('MY_SHOP','','','');`,
       // . ສ້າງ Table ຜູ້ໃຊ້ (User Table)
       `
             CREATE TABLE IF NOT EXISTS tb_user (
@@ -46,7 +59,7 @@ async function initDatabase() {
       `
             CREATE TABLE IF NOT EXISTS tb_category (
                 category_id int PRIMARY KEY AUTO_INCREMENT,
-                category_name varchar(100),
+                category_name varchar(100) UNIQUE NOT NULL,
                 created_at timestamp DEFAULT (now())
             );
         `,
@@ -54,21 +67,28 @@ async function initDatabase() {
       // . ສ້າງ Table ສິນຄ້າ (Product Table)
       `
             CREATE TABLE IF NOT EXISTS tb_product (
-                product_id int PRIMARY KEY AUTO_INCREMENT,
-                barcode varchar(30),
-                category_id int,
-                brand_name varchar(50),
-                product_name varchar(255),
-                serial_number varchar(50),
-                cost_price decimal(10,2),
-                sale_price decimal(10,2),
-                stock_qty int DEFAULT 0,
-                old_price decimal(10,2),
-                detail text,
-                image varchar(255),
-                is_active boolean DEFAULT true,
-                created_at timestamp DEFAULT (now())
-            );
+            product_id INT PRIMARY KEY AUTO_INCREMENT,
+            barcode VARCHAR(30) UNIQUE,
+            category_id INT,
+            brand_name VARCHAR(50),
+            product_name VARCHAR(255),
+            serial_number BOOLEAN DEFAULT FALSE,
+            cost_price DECIMAL(10,2) DEFAULT 0,
+            sale_price DECIMAL(10,2) DEFAULT 0,
+            stock_qty INT DEFAULT 0,
+            old_price DECIMAL(10,2) DEFAULT 0,
+            detail TEXT,
+            warranty VARCHAR(50),
+            image VARCHAR(255),
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+            CONSTRAINT fk_product_category 
+            FOREIGN KEY (category_id) 
+            REFERENCES tb_category(category_id)
+            ON DELETE RESTRICT 
+            ON UPDATE CASCADE
+);
         `,
       // . Table ລູກຄ້າ (ເພີ່ມໃໝ່)
       `
@@ -88,7 +108,7 @@ async function initDatabase() {
             CREATE TABLE IF NOT EXISTS tb_supplier (
                 supplier_id int PRIMARY KEY AUTO_INCREMENT,
                 supplier_name varchar(255),
-                phone varchar(20),
+                phone varchar(20) UNIQUE,
                 address text,
                 detail text,
                 created_at timestamp DEFAULT (now())
@@ -135,17 +155,39 @@ async function initDatabase() {
         `,
       // . Table ບັນທຶກການເຄື່ອນໄຫວສະຕັອກ (ເພີ່ມໃໝ່)
       `
-            CREATE TABLE IF NOT EXISTS tb_stock_transactions (
-                stockt_id int PRIMARY KEY AUTO_INCREMENT,
-                product_id int NOT NULL,
-                supplier_id int NULL,
-                type enum('IN', 'OUT', 'ADJUST') NOT NULL,
-                quantity int NOT NULL,
-                reference_no varchar(50) NULL, -- ເພີ່ມເພື່ອອ້າງອີງເລກທີບິນ
-                comment varchar(255),
-                user_id int,
-                created_at timestamp DEFAULT (now())
-            );
+          CREATE TABLE IF NOT EXISTS tb_stock_transactions (
+            stockt_id int PRIMARY KEY AUTO_INCREMENT,
+            product_id int,
+            order_id int DEFAULT NULL COMMENT 'ອ້າງອີງບິນຂາຍ ຖ້າແມ່ນການຕັດ stock ຈາກການຂາຍ',
+            type enum('IN','OUT','ADJUST') DEFAULT NULL,
+            quantity int DEFAULT NULL,
+            comment varchar(255) DEFAULT NULL,
+            user_id int,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+            CONSTRAINT fk_products
+            FOREIGN KEY (product_id) 
+            REFERENCES tb_product(product_id),
+
+            CONSTRAINT fk_user
+            FOREIGN KEY (user_id) 
+            REFERENCES tb_user(user_id)
+          );
+        `,
+              // . Table ບັນທຶກການເຄື່ອນໄຫວສະຕັອກ (ເພີ່ມໃໝ່)
+      `
+          CREATE TABLE IF NOT EXISTS tb_serial_number (
+            sn_id int PRIMARY KEY AUTO_INCREMENT,
+            product_id int,
+            serial_no varchar(100) NOT NULL UNIQUE,
+            status enum('IN_STOCK','SOLD','RETURNED') DEFAULT 'IN_STOCK',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            
+            CONSTRAINT fk_product_serial
+            FOREIGN KEY (product_id) 
+            REFERENCES tb_product(product_id)
+            
+          );
         `,
     ];
 

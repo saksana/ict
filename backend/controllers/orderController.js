@@ -1,13 +1,32 @@
 const db = require("../config/db");
 
-exports.getOrder = async(req,res) =>{
+exports.getOrder = async (req, res) => {
   try {
-        const [rows] = await db.query("SELECT * FROM tb_order ORDER BY order_id DESC");
-        res.json(rows);
-    } catch (err) {
-        res.status(500).json({ message: "Server Error", error: err.message });
-    }
-}
+    // 1. ดຶງຂໍ້ມູນ Orders ທັງໝົດ
+    const [orders] = await db.query("SELECT * FROM tb_order ORDER BY order_id DESC");
+
+    // 2. ດຶງລາຍການສິນຄ້າ (items) ຂອງແຕ່ລະ Order ມາລວມກັນ
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const [items] = await db.query(
+          `SELECT d.*, p.product_name, p.image 
+           FROM tb_order_detail d 
+           LEFT JOIN tb_product p ON d.product_id = p.product_id 
+           WHERE d.order_id = ?`,
+          [order.order_id]
+        );
+        return {
+          ...order,
+          items: items || [], // ໃສ່ items ໃຫ້ຄົບຊຸດຕາມທີ່ InvoiceA4 ຕ້ອງການ
+        };
+      })
+    );
+
+    res.json(ordersWithItems);
+  } catch (err) {
+    res.status(500).json({ message: "Server Error", error: err.message });
+  }
+};
 
 exports.createOrder = async (req, res) => {
   // ສ້າງ Connection ແຍກອອກມາເພື່ອເຮັດ Transaction
@@ -31,6 +50,7 @@ exports.createOrder = async (req, res) => {
       payment_status,
     } = req.body;
     // items ຈະເປັນ Array ຂອງສິນຄ້າ: [{product_id, qty, unit_price, subtotal}, ...]
+    console.log(req.body)
 
     // 1. ສ້າງເລກທີບິນ (Order No) ແບບອັດຕະໂນມັດ (ຕົວຢ່າງ: ORD-20231027-001)
     const orderNo = `ORD-${Date.now()}`;
@@ -80,15 +100,15 @@ exports.createOrder = async (req, res) => {
         "UPDATE tb_product SET stock_qty = stock_qty - ? WHERE product_id = ?";
       await conn.query(sqlUpdateStock, [item.qty, item.product_id]);
 
-      // C. ບັນທຶກປະຫວັດການເອົາສິນຄ້າອອກ (tb_stock_transactions) **ເພີ່ມໃໝ່**
+      // C. ບັນທຶກປະຫວັດການເອົາສິນຄ້າອອກ (tb_stock_transactions) 
       const sqlStockLog = `INSERT INTO tb_stock_transactions 
-                                (product_id, type, quantity, reference_no, comment, user_id) 
+                                (product_id, type, quantity, order_id, comment, user_id) 
                                 VALUES (?, 'OUT', ?, ?, ?, ?)`;
       const comment = `ຂາຍສິນຄ້າຜ່ານບິນເລກທີ: ${orderNo}`;
       await conn.query(sqlStockLog, [
         item.product_id,
         item.qty,
-        orderNo,
+        orderId,
         comment,
         user_id,
       ]);
@@ -158,7 +178,7 @@ exports.cancelOrder = async (req, res) => {
 
       // B. ບັນທຶກປະຫວັດການຄືນ Stock (ເປັນ IN)
       const sqlStockLog = `INSERT INTO tb_stock_transactions 
-                            (product_id, type, quantity, reference_no, comment, user_id) 
+                            (product_id, type, quantity, order_id, comment, user_id) 
                             VALUES (?, 'IN', ?, ?, ?, ?)`;
       const comment = `ຄືນ Stock ຈາກການຍົກເລີກບິນເລກທີ: ${orderNo} ${cancel_reason ? `(ເຫດຜົນ: ${cancel_reason})` : ""}`;
 

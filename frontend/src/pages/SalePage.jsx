@@ -1,26 +1,32 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as productApi from "../api/productApi";
 import * as orderApi from "../api/orderApi";
 import * as customerApi from "../api/customerApi";
+import * as categoryApi from "../api/categoryApi";
 import { toast } from "react-toastify";
 import { useReactToPrint } from "react-to-print";
-import InvoiceReceipt from "../components/InvoiceReceipt";
 import InvoiceA4 from "../components/InvoiceA4";
+import Cart from "../components/Cart";
+import ProductGrid from "../components/ProductGrid";
 
 const SalePage = () => {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
   const user = JSON.parse(localStorage.getItem("user"));
+  const [isSearching, setIsSearching] = useState(false);
 
-  // --- State ສໍາລັບລະບົບລູກຄ້າ ---
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
+
+  // --- State ສຳລັບລະບົບລູກຄ້າ ---
   const [customers, setCustomers] = useState([]);
   const [customerSearch, setCustomerSearch] = useState("");
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [selectedCustomerObj, setSelectedCustomerObj] = useState(null);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
-  // --- State ໃໝ່ສໍາລັບ CRUD ລູກຄ້າ ---
+  // --- State ສຳລັບ CRUD ລູກຄ້າ ---
   const [showCustModal, setShowCustModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingCustId, setEditingCustId] = useState(null);
@@ -40,9 +46,23 @@ const SalePage = () => {
   const [printData, setPrintData] = useState(null);
   const receiptRef = useRef(null);
 
+  // --- 🟢 State ໃໝ່ສຳລັບ Modal ປະຫວັດການຂາຍ ---
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [ordersHistory, setOrdersHistory] = useState([]);
+  const [filterDate, setFilterDate] = useState(
+    new Date().toISOString().split("T")[0]
+  ); // ວັນທີປະຈຸບັນ YYYY-MM-DD
+
   useEffect(() => {
-    fetchProducts();
-  }, [search]);
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchProducts();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search, selectedCategory]);
 
   useEffect(() => {
     fetchCustomers();
@@ -51,22 +71,40 @@ const SalePage = () => {
   useEffect(() => {
     if (customerSearch.trim() === "") {
       setFilteredCustomers([]);
-    } else {
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    const timer = setTimeout(() => {
       const filtered = customers.filter(
         (cust) =>
           cust.customer_name
             .toLowerCase()
             .includes(customerSearch.toLowerCase()) ||
           (cust.phone && cust.phone.includes(customerSearch)) ||
-          cust.customer_id.toString() === customerSearch,
+          cust.customer_id.toString() === customerSearch
       );
       setFilteredCustomers(filtered);
-    }
+      setIsSearching(false);
+    }, 400);
+    return () => clearTimeout(timer);
   }, [customerSearch, customers]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await categoryApi.getCategories();
+      setCategories(res.data.data || res.data || []);
+    } catch (err) {
+      console.error("ໂຫລດປະເພດສິນຄ້າບໍ່ສຳເລັດ");
+    }
+  };
 
   const fetchProducts = async () => {
     try {
-      const res = await productApi.getAllProducts(search);
+      const res = await productApi.getAllProducts({
+        search,
+        category_id: selectedCategory || null,
+      });
       setProducts(res.data.data || res.data);
     } catch (err) {
       toast.error("ໂຫລດສິນຄ້າບໍ່ສຳເລັດ");
@@ -82,7 +120,42 @@ const SalePage = () => {
     }
   };
 
-  // --- ຟັງຊັນຈັດການ CRUD ລູກຄ້າ ---
+  // --- 🟢 ຟັງຊັນໂຫລດປະຫວັດການຂາຍ ---
+  const handleOpenHistoryModal = async () => {
+    try {
+      const res = await orderApi.getOrders();
+      setOrdersHistory(res.data || []);
+      setShowHistoryModal(true);
+    } catch (err) {
+      toast.error("ບໍ່ສາມາດໂຫລດປະຫວັດການຂາຍໄດ້");
+    }
+  };
+
+  // กรอง Orders ຕາມວັນທີທີ່ເລືອກ (ສົມມຸດ Field ວັນທີໃນ tb_order ແມ່ນ created_at ຫຼື order_date)
+  const filteredOrders = ordersHistory.filter((order) => {
+    const orderDateStr = order.created_at || order.order_date;
+    if (!orderDateStr) return false;
+    return orderDateStr.startsWith(filterDate);
+  });
+
+  // ຟັງຊັນສຳລັບກົດພິມບິນຍ้อนຫຼັງ
+  const handlePrintExistingOrder = async (order) => {
+    // ດຶງຂໍ້ມູນລູກຄ້າ ຫຼື ຈັດກຽມ cartItems ຕາມໂຄງສ້າງ b_order ຂອງທ່ານ
+    const customerObj =
+      customers.find((c) => c.customer_id === order.customer_id) || null;
+    
+    // ຖ້າ API order ມີ items ມາພ້ອມແລ້ວ ສາມາດໃຊ້ items ໄດ້ເລີຍ ຫຼື ປັບຕາມໂຄງສ້າງ Response ຂອງທ່ານ
+    await setPrintData({
+      orderData: order,
+      customer: customerObj,
+      cartItems: order.items || [], 
+    });
+
+    setTimeout(() => {
+      handlePrint();
+    }, 300);
+  };
+
   const handleOpenAddModal = () => {
     setIsEditMode(false);
     setCustForm({ customer_name: "", phone: "", address: "", points: 0 });
@@ -111,7 +184,6 @@ const SalePage = () => {
       if (isEditMode) {
         const res = await customerApi.updateCustomer(editingCustId, custForm);
         toast.success(res.data.message || "ແກ້ໄຂຂໍ້ມູນລູກຄ້າສຳເລັດ!");
-        // ອັບເດດຂໍ້ມູນທີ່ກຳລັງເລືອກຢູ່ (ຖ້າມີການແກ້ໄຂລູກຄ້າຄົນນີ້ຢູ່)
         if (
           selectedCustomerObj &&
           selectedCustomerObj.customer_id === editingCustId
@@ -162,8 +234,8 @@ const SalePage = () => {
               qty: Number(newQty),
               subtotal: Number(newQty) * Number(item.unit_price),
             }
-          : item,
-      ),
+          : item
+      )
     );
   };
 
@@ -195,7 +267,7 @@ const SalePage = () => {
 
   const totalAmount = cart.reduce(
     (sum, item) => sum + Number(item.subtotal),
-    0,
+    0
   );
   const netAmount =
     totalAmount - Number(discount) > 0 ? totalAmount - Number(discount) : 0;
@@ -270,341 +342,46 @@ const SalePage = () => {
 
   return (
     <div className="flex h-screen bg-gray-100 font-lao overflow-hidden relative">
-      {/* ສ່ວນສະແດງສິນຄ້າ */}
-      <div className="flex-1 flex flex-col p-4 h-full overflow-hidden pt-18">
-        {/* ແຖບຄົ້ນຫາ */}
-        <div className="mb-6 shrink-0 relative max-w-md w-full mx-auto md:mx-0">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
-          <input
-            type="text"
-            placeholder="ຄົ້ນຫາສິນຄ້າທີ່ນີ້..."
-            className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm outline-none transition-all duration-300 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 text-gray-700 placeholder-gray-400"
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        {/* ບໍລິເວນສະແດງ Grid ສິນຄ້າ */}
-        <div className="flex-1 overflow-y-auto pr-2 pb-16 lg:pb-4 grid grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-          {products.map((p) => (
-            <div
-              key={p.product_id}
-              onClick={() => addToCart(p)}
-              className="bg-white p-2 rounded-2xl shadow-sm hover:shadow-md border border-transparent hover:border-orange-500 cursor-pointer transition-all h-fit"
-            >
-              <div className="h-28 bg-gray-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-300">
-                {p.image ? (
-                  <img
-                    src={`http://localhost:3300/uploads/${p.image}`}
-                    className="w-full h-full object-cover"
-                    alt={p.product_name}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.parentNode.innerHTML =
-                        '<i className="fas fa-image text-3xl"></i>';
-                    }}
-                  />
-                ) : (
-                  <i className="fas fa-image text-3xl text-gray-300"></i>
-                )}
-              </div>
-              <p className="text-[10px] text-gray-600">{p.barcode}</p>
-              <div className="h-10 overflow-hidden">
-                <p className="font-bold text-[12px]">{p.product_name}</p>
-              </div>
-              <p className="text-orange-600 font-bold">
-                {Number(p.sale_price).toLocaleString()} ₭
-              </p>
-              <p className="text-[10px] text-gray-400">stock: {p.stock_qty}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ProductGrid
+        search={search}
+        setSearch={setSearch}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        products={products}
+        addToCart={addToCart}
+        onOpenOrderHistory={handleOpenHistoryModal}
+      />
 
-      {showCartMobile && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden transition-opacity duration-300"
-          onClick={() => setShowCartMobile(false)}
-        />
-      )}
+      <Cart
+        cart={cart}
+        totalCartItems={totalCartItems}
+        showCartMobile={showCartMobile}
+        setShowCartMobile={setShowCartMobile}
+        selectedCustomerObj={selectedCustomerObj}
+        setSelectedCustomerObj={setSelectedCustomerObj}
+        customerSearch={customerSearch}
+        setCustomerSearch={setCustomerSearch}
+        showCustomerDropdown={showCustomerDropdown}
+        setShowCustomerDropdown={setShowCustomerDropdown}
+        isSearching={isSearching}
+        filteredCustomers={filteredCustomers}
+        handleOpenAddModal={handleOpenAddModal}
+        handleOpenEditModal={handleOpenEditModal}
+        handleDeleteCustomer={handleDeleteCustomer}
+        updateQty={updateQty}
+        removeFromCart={removeFromCart}
+        totalAmount={totalAmount}
+        discount={discount}
+        setDiscount={setDiscount}
+        netAmount={netAmount}
+        setShowPaymentModal={setShowPaymentModal}
+      />
 
-      {/* ສ່ວນກະຕ່າສິນຄ້າ */}
-      <div
-        className={`
-        fixed top-0 right-0 h-screen w-full sm:w-96 bg-slate-50 border-l border-gray-200/80 shadow-2xl flex flex-col overflow-hidden z-40 transition-transform duration-300
-        lg:static lg:flex lg:translate-x-0
-        ${showCartMobile ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
-      `}
-      >
-        {/* Header ກະຕ່າ */}
-        <div className="p-4 bg-white border-b border-gray-100 font-bold text-lg flex items-center justify-between shrink-0 h-16">
-          <div className="flex items-center gap-2.5 text-slate-800">
-            <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center text-orange-500">
-              <i className="fas fa-shopping-cart text-sm"></i>
-            </div>
-            <span>ກະຕ່າສິນຄ້າ</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {cart.length > 0 && (
-              <span className="bg-orange-500 text-white text-xs px-2.5 py-1 rounded-full font-black">
-                {totalCartItems} ຊິ້ນ
-              </span>
-            )}
-            <button
-              onClick={() => setShowCartMobile(false)}
-              className="lg:hidden p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-all"
-            >
-              <i className="fas fa-arrow-right"></i>
-            </button>
-          </div>
-        </div>
-
-        {/* ສ່ວນຄົ້ນຫາ ແລະ ຈັດການລູກຄ້າ */}
-        <div className="p-4 bg-white border-b border-gray-100 shrink-0">
-          <div className="flex justify-between items-center mb-1.5 px-1">
-            <label className="block text-[11px] font-black uppercase tracking-wider text-gray-400">
-              <b>ຂໍ້ມູນລູກຄ້າ</b>
-            </label>
-            {/* ປຸ່ມຈັດການລູກຄ້າຢູ່ຟາກຂວາ */}
-            <button
-              onClick={handleOpenAddModal}
-              className="text-[11px] bg-orange-50 text-orange-600 hover:bg-orange-100 px-2 py-1 rounded-lg font-bold transition-all flex items-center gap-1"
-            >
-              <i className="fas fa-user-plus"></i> ລູກຄ້າໃໝ່
-            </button>
-          </div>
-
-          {selectedCustomerObj ? (
-            <div className="flex justify-between items-center bg-linear-to-r from-orange-500 to-amber-500 text-white p-3 rounded-2xl text-sm font-bold shadow-md shadow-orange-500/10 border border-orange-400/20 animate-fade-in">
-              <div className="truncate flex items-center gap-3">
-                <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                  <i className="fas fa-user text-xs"></i>
-                </div>
-                <div className="truncate">
-                  <p className="font-bold leading-tight">
-                    {selectedCustomerObj.customer_name}
-                  </p>
-                  <span className="text-[11px] opacity-90 font-medium block mt-0.5">
-                    <i className="fas fa-phone-alt text-[10px] mr-1"></i>
-                    {selectedCustomerObj.phone || "ບໍ່ມີເບີໂທ"} • ID:{" "}
-                    {selectedCustomerObj.customer_id}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setSelectedCustomerObj(null);
-                  setCustomerSearch("");
-                }}
-                className="bg-white/20 hover:bg-white/30 text-white w-7 h-7 rounded-xl flex items-center justify-center transition-all active:scale-90"
-              >
-                <i className="fas fa-times text-xs"></i>
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="ຄົ້ນຫາ ຊື່ / ເບີໂທ / ລະຫັດລູກຄ້າ..."
-                className="w-full p-2.5 pl-9 border border-gray-200 rounded-xl bg-gray-50/50 outline-none focus:bg-white focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 text-sm transition-all text-gray-700 placeholder:text-gray-400"
-                value={customerSearch}
-                onChange={(e) => {
-                  setCustomerSearch(e.target.value);
-                  setShowCustomerDropdown(true);
-                }}
-                onFocus={() => setShowCustomerDropdown(true)}
-              />
-              <i className="fas fa-search absolute left-3.5 top-3.5 text-gray-400 text-xs"></i>
-
-              {showCustomerDropdown && customerSearch && (
-                <div className="absolute left-0 right-0 mt-2 border border-gray-100 rounded-2xl shadow-2xl max-h-56 overflow-y-auto z-50 text-sm p-1.5 backdrop-blur-xl bg-white/95">
-                  {filteredCustomers.length > 0 ? (
-                    filteredCustomers.map((cust) => (
-                      <div
-                        key={cust.customer_id}
-                        className="p-2.5 hover:bg-orange-50/60 rounded-xl cursor-pointer flex justify-between items-center transition-all duration-150 group/item"
-                      >
-                        {/* ຄລິກເລືອກລູກຄ້າ */}
-                        <div
-                          className="flex items-center gap-2.5 flex-1"
-                          onClick={() => {
-                            setSelectedCustomerObj(cust);
-                            setShowCustomerDropdown(false);
-                          }}
-                        >
-                          <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 text-xs">
-                            <i className="fas fa-user"></i>
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-800 leading-tight">
-                              {cust.customer_name}
-                            </p>
-                            <p className="text-[11px] text-gray-400 mt-0.5">
-                              {cust.phone || "ບໍ່ມີເບີໂທ"}
-                            </p>
-                          </div>
-                        </div>
-                        {/* ປຸ່ມ ແກ້ໄຂ ແລະ ລຶບ ທີ່ຈະສະແດງໃນ Dropdown */}
-                        <div className="flex gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenEditModal(cust);
-                            }}
-                            className="w-6 h-6 bg-amber-50 hover:bg-amber-500 text-amber-600 hover:text-white rounded-lg text-[10px] flex items-center justify-center transition-all"
-                            title="ແກ້ໄຂ"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </button>
-                          {cust.customer_id !== 1 && ( // ບໍ່ໃຫ້ລຶບລູກຄ້າທົ່ວໄປ ID 1
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteCustomer(cust.customer_id);
-                              }}
-                              className="w-6 h-6 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-lg text-[10px] flex items-center justify-center transition-all"
-                              title="ລຶບ"
-                            >
-                              <i className="fas fa-trash-alt"></i>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-gray-400 text-xs font-bold flex flex-col items-center gap-1">
-                      <i className="fas fa-user-slash text-lg"></i>
-                      <span>ບໍ່ພົບຂໍ້ມູນລູກຄ້າ</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ລາຍການສິນຄ້າໃນກະຕ່າ */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 ContentScrollbar">
-          {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400/80 gap-3">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-300">
-                <i className="fas fa-shopping-basket text-2xl"></i>
-              </div>
-              <p className="text-sm font-bold tracking-wide">ກະຕ່າວ່າງເປົ່າ</p>
-            </div>
-          ) : (
-            cart.map((item) => (
-              <div
-                key={item.product_id}
-                className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between relative group hover:shadow-md hover:border-gray-200/60 transition-all duration-200"
-              >
-                <button
-                  onClick={() => removeFromCart(item.product_id)}
-                  className="absolute top-3.5 right-3.5 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white w-6 h-6 rounded-lg text-[10px] flex items-center justify-center transition-all active:scale-90 lg:opacity-0 lg:group-hover:opacity-100"
-                >
-                  <i className="fas fa-trash-alt"></i>
-                </button>
-                <div className="pr-6">
-                  <p className="font-bold text-sm text-slate-800 truncate mb-3">
-                    {item.product_name}
-                  </p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-1 bg-gray-50 border border-gray-100 rounded-xl p-1">
-                    <button
-                      onClick={() =>
-                        updateQty(item.product_id, item.qty - 1, item.stock_qty)
-                      }
-                      className="w-6 h-6 rounded-lg hover:bg-white text-gray-500 hover:text-orange-500 font-black transition-all flex items-center justify-center text-xs shadow-none hover:shadow-sm"
-                    >
-                      <i className="fas fa-minus text-[9px]"></i>
-                    </button>
-                    <span className="font-bold text-sm w-7 text-center text-slate-800">
-                      {item.qty}
-                    </span>
-                    <button
-                      onClick={() =>
-                        updateQty(item.product_id, item.qty + 1, item.stock_qty)
-                      }
-                      className="w-6 h-6 rounded-lg hover:bg-white text-gray-500 hover:text-orange-500 font-black transition-all flex items-center justify-center text-xs shadow-none hover:shadow-sm"
-                    >
-                      <i className="fas fa-plus text-[9px]"></i>
-                    </button>
-                  </div>
-                  <p className="font-black text-sm text-slate-800">
-                    {Number(item.subtotal).toLocaleString()}{" "}
-                    <span className="text-[10px] text-gray-400 font-normal">
-                      ກີບ
-                    </span>
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* ສ່ວນຄິດໄລ່ເງິນ */}
-        <div className="p-4 border-t border-gray-200/60 bg-white space-y-3.5 shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.02)]">
-          <div className="flex justify-between items-center text-xs font-bold text-gray-400 px-1">
-            <span>ລວມເປັນເງິນ:</span>
-            <span className="text-gray-700 text-sm font-black">
-              {totalAmount.toLocaleString()} ກີບ
-            </span>
-          </div>
-
-          <div className="flex justify-between items-center gap-4 bg-gray-50/50 p-2.5 px-3 rounded-xl border border-gray-100">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
-              <i className="fas fa-tag text-red-400 text-[10px]"></i>
-              <span>ສ່ວນຫຼຸດ (ກີບ):</span>
-            </div>
-            <input
-              type="number"
-              min="0"
-              placeholder="0"
-              className="w-32 p-1 text-right font-black text-red-500 outline-none bg-transparent border-b border-transparent focus:border-orange-500 text-sm transition-all placeholder:text-gray-300"
-              value={discount || ""}
-              onChange={(e) => setDiscount(Number(e.target.value))}
-            />
-          </div>
-
-          <div className="flex justify-between items-end pt-1 px-1">
-            <span className="font-bold text-sm text-gray-500 pb-0.5">
-              ຍອດຊຳລະສຸດທິ:
-            </span>
-            <span className="text-2xl font-black text-orange-600 tracking-tight">
-              {netAmount.toLocaleString()}{" "}
-              <span className="text-xs font-bold text-orange-500">ກີບ</span>
-            </span>
-          </div>
-
-          <button
-            disabled={cart.length === 0}
-            onClick={() => setShowPaymentModal(true)}
-            className="w-full py-3.5 bg-linear-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold text-base shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-all disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:pointer-events-none flex items-center justify-center gap-2"
-          >
-            <i className="fas fa-wallet text-sm"></i>
-            <span>ຊຳລະເງິນ</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Floating Button ສໍາລັບມືຖື */}
+      {/* Floating Button ສຳລັບມືຖື */}
       <button
         onClick={() => setShowCartMobile(true)}
-        className="lg:hidden fixed bottom-6 right-6 bg-linear-to-r from-orange-500 to-amber-500 text-white p-4 rounded-full shadow-2xl z-30 flex items-center justify-center gap-2 active:scale-95 transition-all"
+        className="lg:hidden fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-amber-500 text-white p-4 rounded-full shadow-2xl z-30 flex items-center justify-center gap-2 active:scale-95 transition-all"
       >
         <div className="relative">
           <i className="fas fa-shopping-cart text-xl"></i>
@@ -617,11 +394,93 @@ const SalePage = () => {
         <span className="font-bold text-sm pr-1">ເບິ່ງກະຕ່າ</span>
       </button>
 
+      {/* --- 🟢 Modal ສະແດງປະຫວັດການຂາຍ --- */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white w-full max-w-4xl h-[85vh] rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col">
+            <div className="p-5 bg-gradient-to-br from-slate-800 to-slate-900 text-white font-bold flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-orange-500/20 text-orange-400 rounded-xl flex items-center justify-center">
+                  <i className="fas fa-history"></i>
+                </div>
+                <h3 className="text-lg">ປະຫວັດການຂາຍ</h3>
+              </div>
+              <button
+                onClick={() => setShowHistoryModal(false)}
+                className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white/80 hover:text-white transition-all"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            {/* Sub-header: ເລືອກວັນທີ */}
+            <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-500">ເລືອກວັນທີ:</span>
+                <input
+                  type="date"
+                  className="p-2 border border-gray-200 rounded-xl text-sm font-bold bg-white outline-none focus:border-orange-500"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                />
+              </div>
+              <span className="text-xs font-bold text-gray-400">
+                ພົບທັງໝົດ: <strong className="text-slate-700">{filteredOrders.length}</strong> ລາຍການ
+              </span>
+            </div>
+
+            {/* List ປະຫວັດການຂາຍ */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {filteredOrders.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                  <i className="fas fa-file-invoice text-3xl"></i>
+                  <p className="text-sm font-bold">ບໍ່ມີປະຫວັດການຂາຍໃນວັນທີນີ້</p>
+                </div>
+              ) : (
+                filteredOrders.map((order) => (
+                  <div
+                    key={order.order_id}
+                    className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-orange-200 transition-all"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="bg-orange-50 text-orange-600 font-black text-xs px-2.5 py-1 rounded-lg">
+                          #{order.order_id}
+                        </span>
+                        <span className="text-xs text-gray-400 font-medium">
+                          <i className="far fa-clock mr-1"></i>
+                          {order.created_at || order.order_date}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-slate-800">
+                        ຍອດລວມ: <span className="text-orange-600 font-black">{Number(order.net_amount || order.total_amount).toLocaleString()} ກີບ</span>
+                        <span className="text-xs text-gray-400 ml-2 font-normal">
+                          (ຊຳລະຜ່ານ: {order.payment_method})
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                      <button
+                        onClick={() => handlePrintExistingOrder(order)}
+                        className="px-4 py-2 bg-slate-100 hover:bg-orange-500 hover:text-white text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                      >
+                        <i className="fas fa-print"></i> ພິມບິນຄືນ
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal ຊຳລະເງິນ */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-gray-100">
-            <div className="p-6 bg-linear-to-br from-orange-500 to-amber-500 text-white text-center relative">
+            <div className="p-6 bg-gradient-to-br from-orange-500 to-amber-500 text-white text-center relative">
               <span className="text-xs uppercase tracking-wider opacity-80 block mb-1 font-bold">
                 ຍອດຊຳລະສຸດທິ
               </span>
@@ -688,7 +547,6 @@ const SalePage = () => {
                 </div>
               </div>
 
-              {/* ສະແດງ UI ຕາມຊ່ອງທາງການຊຳລະ */}
               {paymentMethod === "cash" ? (
                 <div className="space-y-4 animate-fade-in">
                   <div>
@@ -755,7 +613,6 @@ const SalePage = () => {
                   </p>
                 </div>
               ) : (
-                /* ກໍລະນີເລືອກ Credit (ຕິດໜີ້) */
                 <div className="p-6 bg-red-50/50 border border-red-100 rounded-2xl text-center space-y-2 animate-fade-in">
                   <div className="w-12 h-12 bg-red-500 text-white rounded-full flex items-center justify-center mx-auto text-xl shadow-md shadow-red-500/20">
                     <i className="fas fa-user-clock animate-pulse"></i>
@@ -769,7 +626,6 @@ const SalePage = () => {
                 </div>
               )}
 
-              {/* ສະແດງຍອດສະຫຼຸບດ້ານລຸ່ມ */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100/80 flex justify-between items-center">
                 <span className="font-bold text-sm text-slate-500">
                   {paymentMethod === "cash"
@@ -798,7 +654,6 @@ const SalePage = () => {
                 </span>
               </div>
 
-              {/* ປຸ່ມກົດ ຍົກເລີກ / ຢືນຢັນ */}
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => {
@@ -835,13 +690,13 @@ const SalePage = () => {
         </div>
       )}
 
-      {/* --- MODAL ສໍາລັບເພີ່ມ ແລະ ແກ້ໄຂຂໍ້ມູນລູກຄ້າ (CRUD) --- */}
+      {/* Modal CRUD ລູກຄ້າ */}
       {showCustModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-gray-100 animate-scale-in">
-            <div className="p-5 bg-linear-to-br from-slate-700 to-slate-900 text-white font-bold flex justify-between items-center">
+            <div className="p-5 bg-gradient-to-br from-orange-500 to-amber-500 text-white font-bold flex justify-between items-center">
               <h3>
-                {isEditMode ? "📝 ແກ້ໄຂຂໍ້ມູນລູກຄ້າ" : "➕ ເພີ່ມລູກຄ້າໃໝ່"}
+                {isEditMode ? "ແກ້ໄຂຂໍ້ມູນລູກຄ້າ" : "ເພີ່ມລູກຄ້າໃໝ່"}
               </h3>
               <button
                 onClick={() => setShowCustModal(false)}
@@ -896,7 +751,7 @@ const SalePage = () => {
                 />
               </div>
               {isEditMode && (
-                <div>
+                <div className="hidden">
                   <label className="block text-xs font-bold text-gray-500 mb-1">
                     ຄະແນນ (Points)
                   </label>
@@ -925,7 +780,7 @@ const SalePage = () => {
                   type="submit"
                   className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm shadow-md transition-all"
                 >
-                  บันທຶກ
+                  ບັນທຶກ
                 </button>
               </div>
             </form>

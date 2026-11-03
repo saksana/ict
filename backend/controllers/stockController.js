@@ -49,10 +49,9 @@ exports.stockIn = async (req, res) => {
 exports.getStockHistory = async (req, res) => {
     try {
         const sql = `
-            SELECT t.*, p.product_name, s.supplier_name, u.fullname as staff_name
+            SELECT t.*, p.product_name, u.fullname as staff_name
             FROM tb_stock_transactions t
             LEFT JOIN tb_product p ON t.product_id = p.product_id
-            LEFT JOIN tb_supplier s ON t.supplier_id = s.supplier_id
             LEFT JOIN tb_user u ON t.user_id = u.user_id
             ORDER BY t.created_at DESC
         `;
