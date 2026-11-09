@@ -23,6 +23,8 @@ const Cart = ({
   setDiscount,
   netAmount,
   setShowPaymentModal,
+  onOpenQuotation,
+  onOpenDebtModal, // 🟢 1. ຮັບ Prop ສຳລັບເປີດ Modal ຈັດການໜີ້ສິນ
 }) => {
   return (
     <>
@@ -265,12 +267,16 @@ const Cart = ({
               <span>ສ່ວນຫຼຸດ (ກີບ):</span>
             </div>
             <input
-              type="number"
-              min="0"
+              type="text"
               placeholder="0"
               className="w-32 p-1 text-right font-black text-red-500 outline-none bg-transparent border-b border-transparent focus:border-orange-500 text-sm transition-all placeholder:text-gray-300"
-              value={discount || ""}
-              onChange={(e) => setDiscount(Number(e.target.value))}
+              value={discount ? Number(discount).toLocaleString() : ""}
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                if (rawValue === "" || !isNaN(rawValue)) {
+                  setDiscount(rawValue === "" ? 0 : Number(rawValue));
+                }
+              }}
             />
           </div>
 
@@ -282,6 +288,26 @@ const Cart = ({
               {netAmount.toLocaleString()}{" "}
               <span className="text-xs font-bold text-orange-500">ກີບ</span>
             </span>
+          </div>
+
+          {/* 🟢 2. ປຸ່ມໃບສະເໜີລາຄາ ແລະ ປຸ່ມຈັດການໜີ້ສິນ (ວາງຄູ່ກັນ) */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              disabled={cart.length === 0}
+              onClick={onOpenQuotation}
+              className="text-xs bg-slate-700 p-2.5 hover:bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:pointer-events-none shadow-sm"
+            >
+              <i className="fas fa-file-invoice text-sm"></i>
+              <span>ໃບສະເໜີລາຄາ</span>
+            </button>
+
+            <button
+              onClick={onOpenDebtModal}
+              className="text-xs bg-red-500 p-2.5 hover:bg-red-600 text-white rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+            >
+              <i className="fas fa-file-invoice-dollar text-sm"></i>
+              <span>ລາຍການຕິດໜີ້</span>
+            </button>
           </div>
 
           <button

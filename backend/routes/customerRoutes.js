@@ -7,9 +7,9 @@ const auth = require("../middleware/authMiddleware");
 // router.post('/',auth.verifyToken, auth.verifyAdmin,  customerController.createCustomer);
 // router.put('/:id',auth.verifyToken, auth.verifyAdmin, customerController.updateCustomer);
 // router.delete('/:id',auth.verifyToken, auth.verifyAdmin,  customerController.deleteCustomer);
-router.get("/", customerController.getCustomers);
-router.post("/", customerController.createCustomer);
-router.put("/:id", customerController.updateCustomer);
-router.delete("/:id", customerController.deleteCustomer);
+router.get("/", auth.verifyToken, customerController.getCustomers);
+router.post("/", auth.verifyToken, customerController.createCustomer);
+router.put("/:id", auth.verifyToken, customerController.updateCustomer);
+router.delete("/:id", auth.verifyToken, customerController.deleteCustomer);
 
 module.exports = router;

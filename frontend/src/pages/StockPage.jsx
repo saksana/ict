@@ -1,23 +1,21 @@
 import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import * as stockApi from "../api/stockApi";
+import * as productApi from "../api/productApi";
+import axios from "axios"; // ປະໄວ້ກໍລະນີຍັງຈຳເປັນ
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import { Link } from "react-router-dom";
 
-// ຕັ້ງຄ່າ Base URL
-const API_URL = "http://localhost:3300/api";
 
 export default function Stock() {
   const [history, setHistory] = useState([]);
   const [products, setProducts] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("IN");
 
-  // State ຟອມ ນຳເຂົ້າສິນຄ້າ
   const initialFormState = {
     product_id: "",
     supplier_id: "",
@@ -28,25 +26,23 @@ export default function Stock() {
 
   const [formData, setFormData] = useState(initialFormState);
 
-  // Header Token
+  // Helper สำหรับ Auth Header (ຖ້າ axios instance ຂອງທ່ານຈັດການ Token ໃຫ້ແລ້ວ ສາມາດລຶບອອກໄດ້)
   const getAuthHeader = () => {
     const token = localStorage.getItem("token");
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
-  // 1. Load ຂໍ້ມູນປະຫວັດ Stock, Product ແລະ Supplier
+  // 1. Load ຂໍ້ມູນປະຫວັດ Stock, Product ແລະ Supplier ຜ່ານ API Services
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [resHistory, resProducts, resSuppliers] = await Promise.all([
-        axios.get(`${API_URL}/stock/history`, getAuthHeader()),
-        axios.get(`${API_URL}/products`, getAuthHeader()),
-        axios.get(`${API_URL}/suppliers`, getAuthHeader()),
+        stockApi.getStockHistory(),
+        productApi.getProducts({ limit: 1000 }), 
       ]);
 
-      setHistory(resHistory.data || []);
-      setProducts(resProducts.data || []);
-      setSuppliers(resSuppliers.data || []);
+      setHistory(resHistory.data?.data || resHistory.data || []);
+      setProducts(resProducts.data?.data || resProducts.data || []);
     } catch (err) {
       console.error("Error fetching data:", err);
       toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນສະຕັອກໄດ້");
@@ -65,7 +61,7 @@ export default function Stock() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 3. Submit ຟອມ Stock In
+  // 3. Submit ຟອມ Stock In ຜ່ານ stockApi
   const handleSubmitStockIn = async (e) => {
     e.preventDefault();
 
@@ -89,11 +85,7 @@ export default function Stock() {
         user_id: currentUser.user_id || 1,
       };
 
-      const res = await axios.post(
-        `${API_URL}/stock/in`,
-        payload,
-        getAuthHeader(),
-      );
+      const res = await stockApi.createStockIn(payload);
 
       if (res.data?.success) {
         Swal.fire({
@@ -133,7 +125,7 @@ export default function Stock() {
 
   return (
     <div className="pt-20 p-6 space-y-6 font-lao bg-gray-50 min-h-screen">
-      {/* Header ຫົວຂໍ້ (Theme ດຽວກັນກັບ Setting & Dashboard) */}
+      {/* Header ຫົວຂໍ້ */}
       <div className="flex items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500 text-xl shadow-inner">
@@ -177,7 +169,6 @@ export default function Stock() {
             onChange={(e) => setTypeFilter(e.target.value)}
             className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none text-sm font-medium w-full md:w-56"
           >
-            
             <option value="IN">ນຳເຂົ້າ (Stock IN)</option>
             <option value="OUT">ນຳອອກ/ຂາຍ (Stock OUT)</option>
             <option value="ALL">ທຸກປະເພດ (All)</option>

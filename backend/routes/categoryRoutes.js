@@ -9,10 +9,10 @@ const auth = require("../middleware/authMiddleware");
 // router.put("/:id", auth.verifyToken, auth.verifyAdmin, categoryController.updateCategory);
 // router.delete("/:id", auth.verifyToken, auth.verifyAdmin, categoryController.deleteCategory);
 
-router.get("/", categoryController.getCategories);
-router.get("/all", categoryController.getAllCategories);
-router.post("/", categoryController.createCategory);
-router.put("/:id", categoryController.updateCategory);
-router.delete("/:id", categoryController.deleteCategory);
+router.get("/", auth.verifyToken, categoryController.getCategories);
+router.get("/all", auth.verifyToken, categoryController.getAllCategories);
+router.post("/", auth.verifyToken, categoryController.createCategory);
+router.put("/:id", auth.verifyToken, categoryController.updateCategory);
+router.delete("/:id", auth.verifyToken, categoryController.deleteCategory);
 
 module.exports = router;

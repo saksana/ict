@@ -5,8 +5,6 @@ import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 
 const imageUrl = import.meta.env.VITE_IMG_URL;
-// URL ສຳລັບສະແດງຮູບພາບ (ປັບຕາມ Server URL ຂອງທ່ານ)
-//const IMAGE_BASE_URL = "http://localhost:3300/uploads";
 const IMAGE_BASE_URL = imageUrl;
 
 const ProductPage = () => {
@@ -15,7 +13,6 @@ const ProductPage = () => {
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const fileInputRef = useRef(null);
 
   // Search & Filter States
@@ -36,6 +33,11 @@ const ProductPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
 
+  // --- 🟢 States ສຳລັບ Modal ຈັດການໝວດໝູ່ຍ່ອຍ ---
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
+
   const initialFormState = {
     barcode: "",
     category_id: "",
@@ -45,17 +47,16 @@ const ProductPage = () => {
     cost_price: 0,
     sale_price: 0,
     old_price: 0,
-    //stock_qty: 0,
     detail: "",
     warranty: "",
-    image: null, // ຮູບເກົ່າ ຫຼື string "null"
+    image: null,
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  const [imageFile, setImageFile] = useState(null); // File object ຈາກ input
-  const [imagePreview, setImagePreview] = useState(null); // Preview URL
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
-  // --- 2. Fetch Categories (ສຳລັບ Select Dropdown) ---
+  // --- 2. Fetch Categories ---
   const fetchCategories = async () => {
     try {
       const res = await categoryApi.getCategories();
@@ -70,6 +71,54 @@ const ProductPage = () => {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // --- 🟢 ຟັງຊັນເພີ່ມ ແລະ ລົບໝວດໝູ່ ---
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) {
+      return toast.warning("ກະລຸນາປ້ອນຊື່ໝວດໝູ່!");
+    }
+
+    setIsCategorySubmitting(true);
+    try {
+      const res = await categoryApi.createCategory({ category_name: newCategoryName.trim() });
+      toast.success(res.data?.message || "ເພີ່ມໝວດໝູ່ສຳເລັດ!");
+      setNewCategoryName("");
+      fetchCategories();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "ບໍ່ສາມາດເພີ່ມໝວດໝູ່ໄດ້");
+    } finally {
+      setIsCategorySubmitting(false);
+    }
+  };
+
+  const handleDeleteCategory = async (catId, catName) => {
+    const result = await Swal.fire({
+      title: "ຢືນຢັນການລົບໝວດໝູ່?",
+      text: `ທ່ານຕ້ອງການລົບໝວດໝູ່ "${catName}" ແທ້ບໍ?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "ລົບເລີຍ!",
+      cancelButtonText: "ຍົກເລີກ",
+      reverseButtons: true,
+      customClass: { popup: "rounded-2xl font-lao" },
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await categoryApi.deleteCategory(catId);
+        toast.success(res.data?.message || "ລົບໝວດໝູ່ສຳເລັດ!");
+        if (formData.category_id.toString() === catId.toString()) {
+          setFormData((prev) => ({ ...prev, category_id: "" }));
+        }
+        fetchCategories();
+      } catch (err) {
+        toast.error(err.response?.data?.message || "ບໍ່ສາມາດລົບໝວດໝູ່ໄດ້ (ອາດມີສິນຄ້າກ່ຽວຂ້ອງຢູ່)");
+      }
+    }
+  };
 
   // --- 3. Debounce Search Handler ---
   useEffect(() => {
@@ -123,9 +172,26 @@ const ProductPage = () => {
   // --- 5. Form & Modal Handlers ---
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    if (type === "checkbox") {
+      setFormData((prev) => ({ ...prev, [name]: checked }));
+      return;
+    }
+
+    if (name === "cost_price" || name === "sale_price" || name === "old_price") {
+      const rawValue = value.replace(/,/g, "");
+      if (rawValue === "" || !isNaN(rawValue)) {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: rawValue === "" ? 0 : Number(rawValue),
+        }));
+      }
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: value,
     }));
   };
 
@@ -162,7 +228,6 @@ const ProductPage = () => {
       cost_price: product.cost_price || 0,
       sale_price: product.sale_price || 0,
       old_price: product.old_price || 0,
-      //stock_qty: product.stock_qty || 0,
       detail: product.detail || "",
       warranty: product.warranty || "",
       image: product.image || null,
@@ -189,10 +254,12 @@ const ProductPage = () => {
       toast.error("ກະລຸນາປ້ອນ Barcode!");
       return;
     }
+
     if (!formData.category_id) {
       toast.error("ກະລຸນາເລືອກໝວດໝູ່!");
       return;
     }
+
     if (!formData.product_name.trim()) {
       toast.error("ກະລຸນາປ້ອນຊື່ສິນຄ້າ!");
       return;
@@ -200,7 +267,6 @@ const ProductPage = () => {
 
     setIsSubmitting(true);
 
-    // ສ້າງ FormData ເພື່ອສົ່ງ file + fields
     const data = new FormData();
     data.append("barcode", formData.barcode.trim());
     data.append("category_id", formData.category_id);
@@ -210,18 +276,14 @@ const ProductPage = () => {
     data.append("cost_price", formData.cost_price);
     data.append("sale_price", formData.sale_price);
     data.append("old_price", formData.old_price);
-    //data.append("stock_qty", formData.stock_qty);
     data.append("detail", formData.detail.trim());
     data.append("warranty", formData.warranty.trim());
 
     if (imageFile) {
-      // ກໍລະນີທີ 1: ມີການເລືອກຮູບໃໝ່
       data.append("image", imageFile);
     } else if (formData.image === null) {
-      // ກໍລະນີທີ 2: ຜູ້ໃຊ້ກົດປຸ່ມ X ເພື່ອລຶບຮູບເກົ່າອອກ
       data.append("image", "null");
     } else {
-      // ກໍລະນີທີ 3: ໃຊ້ຮູບເກົ່າ (ສົ່ງຊື່ຮູບເກົ່າໄປ Backend ເພື່ອບໍ່ໃຫ້ມັນລຶບ)
       data.append("image", formData.image);
     }
 
@@ -233,6 +295,7 @@ const ProductPage = () => {
         const res = await productApi.createProduct(data);
         toast.success(res.data?.message || "ເພີ່ມສິນຄ້າສຳເລັດ!");
       }
+
       closeForm();
       fetchProducts();
     } catch (err) {
@@ -254,9 +317,7 @@ const ProductPage = () => {
       confirmButtonText: "ລົບເລີຍ!",
       cancelButtonText: "ຍົກເລີກ",
       reverseButtons: true,
-      customClass: {
-        popup: "rounded-2xl font-lao",
-      },
+      customClass: { popup: "rounded-2xl font-lao" },
     });
 
     if (result.isConfirmed) {
@@ -264,12 +325,10 @@ const ProductPage = () => {
         const res = await productApi.deleteProduct(id);
         Swal.fire({
           title: "ລົບສຳເລັດ!",
-          text: res.data?.message || "ຂໍ້ມູນຖືກລົບเรียบร້ອຍແລ້ວ.",
+          text: res.data?.message || "ຂໍ້ມູນຖືກລົບຮຽບຮ້ອຍແລ້ວ.",
           icon: "success",
           confirmButtonColor: "#f97316",
-          customClass: {
-            popup: "rounded-2xl font-lao",
-          },
+          customClass: { popup: "rounded-2xl font-lao" },
         });
         fetchProducts();
       } catch (err) {
@@ -294,6 +353,7 @@ const ProductPage = () => {
             </p>
           </div>
         </div>
+
         <button
           onClick={handleOpenCreateModal}
           className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-2xl shadow-lg shadow-orange-500/20 transition-all active:scale-95 flex items-center gap-2 font-bold text-sm"
@@ -369,8 +429,7 @@ const ProductPage = () => {
               {isLoading ? (
                 <tr>
                   <td colSpan="7" className="p-8 text-center text-gray-400">
-                    <i className="fas fa-spinner fa-spin mr-2"></i>{" "}
-                    ກຳລັງໂຫລດຂໍ້ມູນ...
+                    <i className="fas fa-spinner fa-spin mr-2"></i> ກຳລັງໂຫລດຂໍ້ມູນ...
                   </td>
                 </tr>
               ) : products.length === 0 ? (
@@ -469,6 +528,7 @@ const ProductPage = () => {
             ທັງໝົດ <b>{pagination.totalItems}</b> ລາຍການ (ໜ້າ{" "}
             <b>{pagination.currentPage}</b> / <b>{pagination.totalPages}</b>)
           </span>
+
           <div className="flex gap-1.5">
             <button
               disabled={page === 1}
@@ -488,6 +548,7 @@ const ProductPage = () => {
               .map((pageNum, index, array) => {
                 const showEllipsis =
                   index > 0 && pageNum - array[index - 1] > 1;
+
                 return (
                   <div key={pageNum} className="flex items-center gap-1">
                     {showEllipsis && (
@@ -520,7 +581,69 @@ const ProductPage = () => {
         </div>
       </div>
 
-      {/* Modal Form Setup */}
+      {/* --- 🟢 Modal ຈັດການໝວດໝູ່ (Categories Modal) --- */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-150 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setIsCategoryModalOpen(false)}
+          />
+          <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
+              <h3 className="text-lg font-bold text-gray-800">ຈັດການໝວດໝູ່ສິນຄ້າ</h3>
+              <button
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto">
+              {/* Form ເພີ່ມໝວດໝູ່ໃໝ່ */}
+              <form onSubmit={handleAddCategory} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="ຊື່ໝວດໝູ່ໃໝ່..."
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="flex-1 p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={isCategorySubmitting}
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1 shrink-0 disabled:opacity-50"
+                >
+                  <i className="fas fa-plus"></i> ເພີ່ມ
+                </button>
+              </form>
+
+              {/* List ສະແດງໝວດໝູ່ທີ່ມີຢູ່ */}
+              <div className="border border-gray-100 rounded-2xl overflow-hidden divide-y divide-gray-50">
+                {categories.length === 0 ? (
+                  <p className="p-4 text-center text-xs text-gray-400">ຍັງບໍ່ມີໝວດໝູ່</p>
+                ) : (
+                  categories.map((cat) => (
+                    <div key={cat.category_id} className="flex items-center justify-between p-3 hover:bg-gray-50/50">
+                      <span className="text-sm font-bold text-gray-700">{cat.category_name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCategory(cat.category_id, cat.category_name)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors text-xs"
+                        title="ລົບໝວດໝູ່"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Form Setup (ເພີ່ມ/ແກ້ໄຂສິນຄ້າ) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
@@ -566,9 +689,19 @@ const ProductPage = () => {
 
                 {/* Category Dropdown */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-700 ml-1">
-                    ໝວດໝູ່ສິນຄ້າ <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex justify-between items-center ml-1">
+                    <label className="text-xs font-semibold text-gray-700">
+                      ໝວດໝູ່ສິນຄ້າ <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCategoryModalOpen(true)}
+                      className="text-xs font-bold text-orange-500 hover:text-orange-600 flex items-center gap-1 transition-colors"
+                    >
+                      <i className="fas fa-cog"></i> ຈັດການໝວດໝູ່
+                    </button>
+                  </div>
+
                   <select
                     name="category_id"
                     value={formData.category_id}
@@ -637,12 +770,16 @@ const ProductPage = () => {
                     ລາຄາຕົ້ນທຶນ
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="cost_price"
-                    value={formData.cost_price}
+                    value={
+                      formData.cost_price
+                        ? Number(formData.cost_price).toLocaleString()
+                        : ""
+                    }
                     onChange={handleInputChange}
-                    min="0"
-                    className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                    placeholder="0"
+                    className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-mono"
                   />
                 </div>
 
@@ -652,12 +789,16 @@ const ProductPage = () => {
                     ລາຄາຂາຍ
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="sale_price"
-                    value={formData.sale_price}
+                    value={
+                      formData.sale_price
+                        ? Number(formData.sale_price).toLocaleString()
+                        : ""
+                    }
                     onChange={handleInputChange}
-                    min="0"
-                    className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                    placeholder="0"
+                    className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-mono"
                   />
                 </div>
 
@@ -667,12 +808,16 @@ const ProductPage = () => {
                     ລາຄາເກົ່າ (ສ່ວນຫຼຸດ)
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="old_price"
-                    value={formData.old_price}
+                    value={
+                      formData.old_price
+                        ? Number(formData.old_price).toLocaleString()
+                        : ""
+                    }
                     onChange={handleInputChange}
-                    min="0"
-                    className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                    placeholder="0"
+                    className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-mono"
                   />
                 </div>
 
@@ -712,7 +857,6 @@ const ProductPage = () => {
                     ຮູບພາບສິນຄ້າ
                   </label>
 
-                  {/* Input File ແບບຊ່ອນໄວ້ (Hidden) */}
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -723,7 +867,6 @@ const ProductPage = () => {
 
                   <div className="flex items-center gap-4">
                     {imagePreview ? (
-                      /* ករណីມີຮູບ Preview */
                       <div className="relative w-24 h-24 rounded-2xl border border-gray-200 group">
                         <img
                           src={imagePreview}
@@ -731,12 +874,10 @@ const ProductPage = () => {
                           onClick={() => fileInputRef.current?.click()}
                           className="w-full h-full object-cover rounded-2xl cursor-pointer hover:opacity-90 transition-opacity"
                         />
-
-                        {/* ປຸ່ມລຶບຮູບ (X ສີແດງ) ຢູ່ gócຂວາເທິງ */}
                         <button
                           type="button"
                           onClick={(e) => {
-                            e.stopPropagation(); // ປ້ອງກັນບໍ່ໃຫ້ມັນໄປ Trigger ເປີດເລືອກຮູບພາບ
+                            e.stopPropagation();
                             handleRemoveImage();
                           }}
                           className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90"
@@ -746,7 +887,6 @@ const ProductPage = () => {
                         </button>
                       </div>
                     ) : (
-                      /* ກໍລະນີບໍ່ທັນມີຮູບ (ກົດໃສ່ Box ນີ້ເພື່ອເລືອກຮູບໄດ້ເລີຍ) */
                       <div
                         onClick={() => fileInputRef.current?.click()}
                         className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-300 hover:border-orange-400 hover:bg-orange-50/30 flex flex-col items-center justify-center text-gray-400 hover:text-orange-500 cursor-pointer transition-all gap-1"

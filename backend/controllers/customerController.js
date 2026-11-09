@@ -28,7 +28,7 @@ exports.getCustomers = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    let whereColumn = "";
+    let whereColumn = "WHERE customer_id != 1";
     let queryParams = [];
 
     if (search) {
@@ -47,7 +47,7 @@ exports.getCustomers = async (req, res) => {
     // ດຶງຂໍ້ມູນຕາມ Page
     let dataSql = `
     SELECT * FROM tb_customer 
-    ${whereColumn} 
+    ${whereColumn}
     ORDER BY customer_id DESC 
     LIMIT ? OFFSET ?
     `;
@@ -219,6 +219,37 @@ exports.updateCustomer = async (req, res) => {
 exports.deleteCustomer = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // 🟢 0. ຫ້າມລຶບ "ລູກຄ້າທົ່ວໄປ" (ID: 1) ເດັດຂາດ
+    if (Number(id) === 1) {
+      return res.status(400).json({
+        success: false,
+        message: "ບໍ່ສາມາດລຶບຂໍ້ມູນລູກຄ້າທົ່ວໄປ (General Customer) ໄດ້",
+      });
+    }
+
+    // 🟢 1. ກວດສອບກ່ອນວ່າລູກຄ້ານີ້ຍັງມີຍອດໜີ້ຄ້າງຊຳລະ (`debt_balance`) อยู่ຫລືບໍ່
+    const [customerRows] = await db.query(
+      "SELECT customer_name, debt_balance FROM tb_customer WHERE customer_id = ?",
+      [id]
+    );
+
+    if (customerRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "ບໍ່ພົບຂໍ້ມູນລູກຄ້າທີ່ຕ້ອງການລຶບ",
+      });
+    }
+
+    const customer = customerRows[0];
+    if (Number(customer.debt_balance) > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `ບໍ່ສາມາດລຶບລູກຄ້າ "${customer.customer_name}" ได้ ເນື່ອງຈາກຍັງມີຍອດໜີ້ຄ້າງຊຳລະ ${Number(customer.debt_balance).toLocaleString()} ກີບ`,
+      });
+    }
+
+    // 🟢 2. ດຳເນີນການລຶບຂໍ້ມູນ (ຖ້າไม่มีหนີ້ค้าง)
     const [result] = await db.query(
       "DELETE FROM tb_customer WHERE customer_id = ?",
       [id],
@@ -227,7 +258,7 @@ exports.deleteCustomer = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
-        message: "ບໍ່ພົບຂໍ້ມູນລູກຄ້າທີ່ຕ້ອງການລຶບ",
+        message: "ບໍ່ພົບຂໍ້ມູນລູກຄ້າที่ຕ້ອງການລຶບ",
       });
     }
 
@@ -236,11 +267,12 @@ exports.deleteCustomer = async (req, res) => {
       message: "ລຶບຂໍ້ມູນລູກຄ້າສຳເລັດ!",
     });
   } catch (err) {
+    // ດັກກໍລະນີติด Foreign Key Constraint (ເຊັ່ນ: ມີການຜູກຕິດກັບຕາຕະລາງ tb_orders)
     if (err.code === "ER_ROW_IS_REFERENCED_2") {
       return res.status(400).json({
         success: false,
         message:
-          "ບໍ່ສາມາດລຶບໄດ້ ເນື່ອງຈາກຂໍ້ມູນລູກຄ້ານີ້ຖືກໃຊ້ງານຢູ່ (ມີປະວັດການຊື້)",
+          "ບໍ່ສາມາດລຶບໄດ້ ເນື່ອງຈາກຂໍ້ມູນລູກຄ້ານີ້ມີປະຫວັດການຊື້ສິນຄ້າໃນລະບົບແລ້ວ",
       });
     }
 

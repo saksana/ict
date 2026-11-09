@@ -30,7 +30,6 @@ async function initDatabase() {
 
     // 3. ລາຍຊື່ Tables ທີ່ຕ້ອງການສ້າງ
     const tables = [
-
       // . Table ຮ້ານຄ້າ (ເພີ່ມໃໝ່)
       `
             CREATE TABLE IF NOT EXISTS tb_shop (
@@ -42,7 +41,7 @@ async function initDatabase() {
                 created_at timestamp DEFAULT (now())
             );
         `,
-      `INSERT IGNORE INTO tb_shop(shop_name, phone, email, address) VALUES ('MY_SHOP','','','');`,
+      `INSERT IGNORE INTO tb_shop(shop_id, shop_name, phone, email, address) VALUES ('1','MY_SHOP','','','');`,
       // . ສ້າງ Table ຜູ້ໃຊ້ (User Table)
       `
             CREATE TABLE IF NOT EXISTS tb_user (
@@ -98,10 +97,11 @@ async function initDatabase() {
                 phone varchar(20) UNIQUE,
                 points int DEFAULT 0,
                 address text,
+                debt_balance DECIMAL(10,2) DEFAULT 0.00,
                 created_at timestamp DEFAULT (now())
             );
         `,
-      `INSERT IGNORE INTO tb_customer(customer_name, phone, points, address) VALUES ('ລູກຄ້າທົ່ວໄປ','-','0','ບ້ານ ແສງສະຫວ່າງ, ເມືອງ ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ');`,
+      `INSERT IGNORE INTO tb_customer(customer_id, customer_name, phone, points, address) VALUES ('1','ລູກຄ້າທົ່ວໄປ','-','0','-');`,
 
       // . Table ຜູ້ສະໜອງ (ເພີ່ມໃໝ່)
       `
@@ -126,7 +126,19 @@ async function initDatabase() {
                 net_amount decimal(10,2),
                 created_at timestamp DEFAULT (now()),
                 status varchar(20),
-                updated_by int
+                updated_by int,
+
+              CONSTRAINT fk_customers
+              FOREIGN KEY (customer_id) 
+              REFERENCES tb_customer(customer_id),
+
+              CONSTRAINT fk_users_add
+              FOREIGN KEY (user_id) 
+              REFERENCES tb_user(user_id),
+
+              CONSTRAINT fk_users_update
+              FOREIGN KEY (updated_by) 
+              REFERENCES tb_user(user_id)
             );
         `,
 
@@ -146,7 +158,7 @@ async function initDatabase() {
             CREATE TABLE IF NOT EXISTS tb_payment (
                 payment_id int PRIMARY KEY AUTO_INCREMENT,
                 order_id int,
-                method enum('Cash','QR PromptPay'),
+                method enum('Cash','QR PromptPay', 'Credit'),
                 amount_paid decimal(10,2),
                 change_amount decimal(10,2) DEFAULT 0,
                 payment_time timestamp DEFAULT (now()),
@@ -174,7 +186,7 @@ async function initDatabase() {
             REFERENCES tb_user(user_id)
           );
         `,
-              // . Table ບັນທຶກການເຄື່ອນໄຫວສະຕັອກ (ເພີ່ມໃໝ່)
+      // . Table ບັນທຶກການເຄື່ອນໄຫວສະຕັອກ (ເພີ່ມໃໝ່)
       `
           CREATE TABLE IF NOT EXISTS tb_serial_number (
             sn_id int PRIMARY KEY AUTO_INCREMENT,
@@ -188,6 +200,22 @@ async function initDatabase() {
             REFERENCES tb_product(product_id)
             
           );
+        `,
+      `
+    CREATE TABLE IF NOT EXISTS tb_debt_payment (
+    debt_pay_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT NOT NULL,
+    customer_id INT NOT NULL,
+    user_id INT,
+    amount_paid DECIMAL(10,2) NOT NULL,
+    payment_method VARCHAR(50) DEFAULT 'Cash',
+    note VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_debt_order FOREIGN KEY (order_id) REFERENCES tb_order(order_id),
+    CONSTRAINT fk_debt_customer FOREIGN KEY (customer_id) REFERENCES tb_customer(customer_id),
+    CONSTRAINT fk_debt_user FOREIGN KEY (user_id) REFERENCES tb_user(user_id)
+);
         `,
     ];
 
