@@ -1,13 +1,31 @@
 import api from "./axios";
 
-export const createOrder = (orderData) => api.post("/orders", orderData);
+// ສ້າງອິນວອຍ / ສັ່ງຊື້ສິນຄ້າ
+export const createOrder = async (orderData) => {
+  const response = await api.post("/orders", orderData);
+  return response.data;
+};
 
-export const getCustomers = () => api.get("/customers");
+// ດຶງຂໍ້ມູນລູກຄ້າ
+export const getCustomers = async () => {
+  const response = await api.get("/customers");
+  return response.data;
+};
 
-export const getOrders = () => api.get("/orders");
+// ດຶງລາຍການອິນວອຍ / ປະຫວັດການສັ່ງຊື້ທັງໝົດ
+export const getOrders = async () => {
+  const response = await api.get("/orders");
+  return response.data;
+};
 
-export const cancelOrder = (orderId, cancelData) => api.put(`/orders/cancel/${orderId}`, cancelData);
+// ยกເລີກອິນວອຍ / ບິນສັ່ງຊື້
+export const cancelOrder = async (orderId, cancelData) => {
+  const response = await api.put(`/orders/cancel/${orderId}`, cancelData);
+  return response.data;
+};
 
+// ຈ່າຍຊຳລະໜີ້ສິນອິນວອຍ
 export const payOrderDebt = async (orderId, data) => {
-  return await api.post(`/orders/pay-order-debt/${orderId}`, data);
+  const response = await api.post(`/orders/pay-order-debt/${orderId}`, data);
+  return response.data;
 };

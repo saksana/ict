@@ -175,13 +175,13 @@ const ProductGrid = ({
                       {Number(p.sale_price).toLocaleString()} ₭
                     </p>
                     <p
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                      className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-md ${
                         isOutOfStock
                           ? "bg-red-100 text-red-600"
                           : "bg-gray-100 text-gray-500"
                       }`}
                     >
-                      stock: {p.stock_qty}
+                      ສາງ: {p.stock_qty}
                     </p>
                   </div>
                 </div>

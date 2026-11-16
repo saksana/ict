@@ -60,8 +60,8 @@ const ProductPage = () => {
   const fetchCategories = async () => {
     try {
       const res = await categoryApi.getCategories();
-      if (res.data?.success) {
-        setCategories(res.data.data || []);
+      if (res?.success) {
+        setCategories(res.data|| []);
       }
     } catch (err) {
       console.error("Fetch categories error:", err);
@@ -82,7 +82,7 @@ const ProductPage = () => {
     setIsCategorySubmitting(true);
     try {
       const res = await categoryApi.createCategory({ category_name: newCategoryName.trim() });
-      toast.success(res.data?.message || "ເພີ່ມໝວດໝູ່ສຳເລັດ!");
+      toast.success(res?.message || "ເພີ່ມໝວດໝູ່ສຳເລັດ!");
       setNewCategoryName("");
       fetchCategories();
     } catch (err) {
@@ -109,7 +109,7 @@ const ProductPage = () => {
     if (result.isConfirmed) {
       try {
         const res = await categoryApi.deleteCategory(catId);
-        toast.success(res.data?.message || "ລົບໝວດໝູ່ສຳເລັດ!");
+        toast.success(res?.message || "ລົບໝວດໝູ່ສຳເລັດ!");
         if (formData.category_id.toString() === catId.toString()) {
           setFormData((prev) => ({ ...prev, category_id: "" }));
         }
@@ -142,8 +142,8 @@ const ProductPage = () => {
       });
 
       if (res.data) {
-        const fetchedData = res.data.data || [];
-        const pagInfo = res.data.pagination || {
+        const fetchedData = res.data || [];
+        const pagInfo = res.pagination || {
           totalItems: 0,
           totalPages: 1,
           currentPage: 1,
@@ -290,10 +290,10 @@ const ProductPage = () => {
     try {
       if (editId) {
         const res = await productApi.updateProduct(editId, data);
-        toast.success(res.data?.message || "ແກ້ໄຂສິນຄ້າສຳເລັດ!");
+        toast.success(res?.message || "ແກ້ໄຂສິນຄ້າສຳເລັດ!");
       } else {
         const res = await productApi.createProduct(data);
-        toast.success(res.data?.message || "ເພີ່ມສິນຄ້າສຳເລັດ!");
+        toast.success(res?.message || "ເພີ່ມສິນຄ້າສຳເລັດ!");
       }
 
       closeForm();
@@ -325,7 +325,7 @@ const ProductPage = () => {
         const res = await productApi.deleteProduct(id);
         Swal.fire({
           title: "ລົບສຳເລັດ!",
-          text: res.data?.message || "ຂໍ້ມູນຖືກລົບຮຽບຮ້ອຍແລ້ວ.",
+          text: res?.message || "ຂໍ້ມູນຖືກລົບຮຽບຮ້ອຍແລ້ວ.",
           icon: "success",
           confirmButtonColor: "#f97316",
           customClass: { popup: "rounded-2xl font-lao" },
@@ -671,6 +671,22 @@ const ProductPage = () => {
               className="p-6 space-y-4 overflow-y-auto"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Product Name */}
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-xs font-semibold text-gray-700 ml-1">
+                    ຊື່ສິນຄ້າ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="product_name"
+                    value={formData.product_name}
+                    onChange={handleInputChange}
+                    placeholder="ປ້ອນຊື່ສິນຄ້າ..."
+                    required
+                    className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                  />
+                </div>
+
                 {/* Barcode */}
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-gray-700 ml-1">
@@ -718,21 +734,7 @@ const ProductPage = () => {
                   </select>
                 </div>
 
-                {/* Product Name */}
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-xs font-semibold text-gray-700 ml-1">
-                    ຊື່ສິນຄ້າ <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="product_name"
-                    value={formData.product_name}
-                    onChange={handleInputChange}
-                    placeholder="ປ້ອນຊື່ສິນຄ້າ..."
-                    required
-                    className="w-full p-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
-                  />
-                </div>
+                
 
                 {/* Brand Name */}
                 <div className="space-y-1">
@@ -803,7 +805,7 @@ const ProductPage = () => {
                 </div>
 
                 {/* Old Price */}
-                <div className="space-y-1">
+                <div className="space-y-1 hidden">
                   <label className="text-xs font-semibold text-gray-700 ml-1">
                     ລາຄາເກົ່າ (ສ່ວນຫຼຸດ)
                   </label>

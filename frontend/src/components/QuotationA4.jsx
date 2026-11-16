@@ -15,8 +15,8 @@ const QuotationA4 = forwardRef(
       const fetchShopInfo = async () => {
         try {
           const res = await shopApi.getShop();
-          if (res.data?.success && res.data.data) {
-            setShopInfo(res.data.data);
+          if (res?.success && res.data) {
+            setShopInfo(res.data);
           }
         } catch (err) {
           console.error("Failed to load shop info for quotation:", err);

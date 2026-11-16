@@ -21,8 +21,8 @@ const SettingPage = () => {
     setIsLoading(true);
     try {
       const res = await shopApi.getShop();
-      if (res.data?.success && res.data.data) {
-        setShopForm(res.data.data);
+      if (res?.success && res.data) {
+        setShopForm(res.data);
       }
     } catch (err) {
       console.error("Fetch shop error:", err);
@@ -48,12 +48,18 @@ const SettingPage = () => {
       return;
     }
 
+    // 🛡️ ປ້ອງກັນກໍລະນີ shop_id ຍັງບໍ່ທັນໂຫຼດມາແລ້ວກົດບັນທຶກ
+    if (!shopForm.shop_id) {
+      toast.error("ບໍ່พบລະຫັດຮ້ານຄ້າ, ກະລຸນາຣີເຟຣດໜ້າຈໍອີກຄັ້ງ!");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await shopApi.updateShop(shopForm.shop_id, shopForm);
-      if (res.data?.success) {
-        toast.success(res.data?.message || "ບັນທຶກຂໍ້ມູນຮ້ານຄ້າສຳເລັດ!");
-        fetchShopData();
+      if (res?.success) {
+        toast.success(res?.message || "ບັນທຶກຂໍ້ມູນຮ້ານຄ້າສຳເລັດ!");
+        fetchShopData(); // Refresh ຂໍ້ມູນຫຼ້າສຸດຈາກ Server
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກ");
@@ -82,13 +88,10 @@ const SettingPage = () => {
       </div>
 
       {/* Main Card Form Section */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100  mx-auto">
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 mx-auto">
         <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex items-center gap-3">
-          
           <div>
-            <h3 className="text-base font-bold text-gray-800">
-              
-            </h3>
+            <h3 className="text-base font-bold text-gray-800">ຂໍ້ມູນຮ້ານຄ້າ</h3>
             <p className="text-xs text-gray-400">
               ຂໍ້ມູນເບື້ອງຕົ້ນທີ່ໃຊ້ໃນການອອກໃບບິນ
             </p>

@@ -173,7 +173,7 @@ export default function PaymentModal({
               {/* 🟢 แจ້ງเตือนกรณีที่ยังไม่ได้เลือกชื่อลูกค้าจริง */}
               {!selectedCustomerObj || selectedCustomerObj.customer_id === 1 ? (
                 <p className="text-xs text-red-600 font-bold bg-red-100 p-2 rounded-lg mt-1">
-                  ⚠️ ກະລຸນາເລືອກລູກຄ້າ (ບໍ່ແມ່ນລູກຄ້າທົ່ວໄປ) ກ່ອນทำรายการຕິດໜີ້!
+                  ⚠️ ກະລຸນາເລືອກລູກຄ້າ ກ່ອນເຮັດລາຍການຕິດໜີ້!
                 </p>
               ) : (
                 <p className="text-xs text-red-500 font-medium">

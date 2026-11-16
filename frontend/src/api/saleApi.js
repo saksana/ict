@@ -1,4 +1,13 @@
 import api from './axios';
 
-export const createOrder = (orderData) => api.post('/orders', orderData);
-export const getCustomers = () => api.get('/customers'); // ສົມມຸດວ່າມີ API ນີ້ແລ້ວ
+// ສ້າງອິນວອຍ / ສັ່ງຊື້ສິນຄ້າ
+export const createOrder = async (orderData) => {
+  const response = await api.post('/orders', orderData);
+  return response.data;
+};
+
+// ດຶງຂໍ້ມູນລູກຄ້າ
+export const getCustomers = async () => {
+  const response = await api.get('/customers');
+  return response.data;
+};

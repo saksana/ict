@@ -35,8 +35,8 @@ export default function CustomerDebtModal({ show, onClose }) {
   const fetchShopInfo = async () => {
     try {
       const res = await shopApi.getShop();
-      if (res.data?.success && res.data.data) {
-        setShopInfo(res.data.data);
+      if (res?.success && res.data) {
+        setShopInfo(res.data);
       }
     } catch (err) {
       console.error("Failed to load shop info:", err);
@@ -64,13 +64,13 @@ export default function CustomerDebtModal({ show, onClose }) {
     setOrdersLoading(true);
     try {
       const res = await orderApi.getOrders();
-      const allOrders = res.data || [];
-      
+      const allOrders = res || res.data || [];
+
       // ກອງເອົາສະເພາະບິນຂອງລູກຄ້າຄົນນີ້ ແລະ ສະຖານະການຈ່າຍຍັງເປັນ unpaid (ຫຼື PENDING)
       const pendingOrders = allOrders.filter(
         (o) =>
           Number(o.customer_id) === Number(cust.customer_id) &&
-          (o.payment_status === "unpaid" || o.status === "PENDING")
+          (o.payment_status === "unpaid" || o.status === "PENDING"),
       );
       setCustomerOrders(pendingOrders);
     } catch (err) {
@@ -116,12 +116,13 @@ export default function CustomerDebtModal({ show, onClose }) {
         note: `ຊຳລະໜີ້ຕາມບິນ ${order.order_no}`,
       });
 
-      toast.success(res.data.message || "ຊຳລະໜີ້ສຳເລັດ!");
+      toast.success(res.message || "ຊຳລະໜີ້ສຳເລັດ!");
 
       // ກຽມຂໍ້ມູນພິມໃບບິນຮັບເງິນ
-      const remainingDebt = res.data.remaining_order_debt !== undefined
-        ? res.data.remaining_order_debt
-        : netAmount - payAmount;
+      const remainingDebt =
+        res.data.remaining_order_debt !== undefined
+          ? res.data.remaining_order_debt
+          : netAmount - payAmount;
 
       await setPrintData({
         paymentData: {
@@ -139,7 +140,6 @@ export default function CustomerDebtModal({ show, onClose }) {
         handleSelectCustomer(selectedCustomer); // ໂຫຼດລາຍການບິນຂອງລູກຄ້າຄົນນີ້ໃໝ່
         fetchDebtCustomers(); // ໂຫຼດລາຍຊື່ລູກຄ້າຕິດໜີ້ລວມໃໝ່
       }, 300);
-
     } catch (err) {
       toast.error(err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດ");
     }
@@ -168,7 +168,11 @@ export default function CustomerDebtModal({ show, onClose }) {
             }}
             className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all"
           >
-            <i className={selectedCustomer ? "fas fa-arrow-left" : "fas fa-times"}></i>
+            <i
+              className={
+                selectedCustomer ? "fas fa-arrow-left" : "fas fa-times"
+              }
+            ></i>
           </button>
         </div>
 
@@ -177,11 +181,15 @@ export default function CustomerDebtModal({ show, onClose }) {
           {!selectedCustomer ? (
             /* --- 🟢 ຫນ້າທີ 1: ສະແດງລາຍຊື່ລູກຄ້າທີ່ມີຍອດຕິດໜີ້ --- */
             loading ? (
-              <div className="text-center py-10 text-gray-400">ກຳລັງໂຫຼດຂໍ້ມູນ...</div>
+              <div className="text-center py-10 text-gray-400">
+                ກຳລັງໂຫຼດຂໍ້ມູນ...
+              </div>
             ) : debtCustomers.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
                 <i className="fas fa-check-circle text-4xl text-green-500"></i>
-                <p className="text-sm font-bold">ບໍ່ມີລູກຄ້າຄ້າງຊຳລະໜີ້ໃນລະບົບ</p>
+                <p className="text-sm font-bold">
+                  ບໍ່ມີລູກຄ້າຄ້າງຊຳລະໜີ້ໃນລະບົບ
+                </p>
               </div>
             ) : (
               debtCustomers.map((cust) => (
@@ -221,15 +229,19 @@ export default function CustomerDebtModal({ show, onClose }) {
                 onClick={() => setSelectedCustomer(null)}
                 className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1 mb-2"
               >
-                <i className="fas fa-arrow-left"></i> กลับໄປหน้ารายຊື່ລູກຄ້າ
+                <i className="fas fa-arrow-left"></i> ກັບຄືນໜ້າລາຍຊື່ລູກຄ້າ
               </button>
 
               {ordersLoading ? (
-                <div className="text-center py-10 text-gray-400">ກຳລັງໂຫຼດລາຍການບິນ...</div>
+                <div className="text-center py-10 text-gray-400">
+                  ກຳລັງໂຫຼດລາຍການບິນ...
+                </div>
               ) : customerOrders.length === 0 ? (
                 <div className="h-48 flex flex-col items-center justify-center text-gray-400 gap-2">
                   <i className="fas fa-check-circle text-3xl text-green-500"></i>
-                  <p className="text-sm font-bold">ລູກຄ້າຄົນນີ້ບໍ່ມີບິນຄ້າງຊຳລະ</p>
+                  <p className="text-sm font-bold">
+                    ລູກຄ້າຄົນນີ້ບໍ່ມີບິນຄ້າງຊຳລະ
+                  </p>
                 </div>
               ) : (
                 customerOrders.map((order) => (
@@ -243,19 +255,33 @@ export default function CustomerDebtModal({ show, onClose }) {
                           {order.order_no || `#${order.order_id}`}
                         </span>
                         <span className="text-xs text-gray-400">
-                          ວັນທີ: {order.created_at ? order.created_at.replace("T", " ").substring(0, 16) : "-"}
+                          ວັນທີ:{" "}
+                          {order.created_at
+                            ? order.created_at
+                                .replace("T", " ")
+                                .substring(0, 16)
+                            : "-"}
                         </span>
                       </div>
                       <p className="text-xs text-gray-500">
-                        ຈຳນວນສິນຄ້າ: <strong className="text-slate-700">{order.items?.length || 0}</strong> ລາຍການ
+                        ຈຳນວນສິນຄ້າ:{" "}
+                        <strong className="text-slate-700">
+                          {order.items?.length || 0}
+                        </strong>{" "}
+                        ລາຍການ
                       </p>
                     </div>
 
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <span className="text-[10px] text-gray-400 block">ຍອດບິນນີ້</span>
+                        <span className="text-[10px] text-gray-400 block">
+                          ຍອດບິນນີ້
+                        </span>
                         <span className="text-base font-black text-slate-800 font-mono">
-                          {Number(order.net_amount || order.total_amount).toLocaleString()} ₭
+                          {Number(
+                            order.net_amount || order.total_amount,
+                          ).toLocaleString()}{" "}
+                          ₭
                         </span>
                       </div>
                       <button

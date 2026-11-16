@@ -12,7 +12,7 @@ import Swal from "sweetalert2";
 import OrderHistoryModal from "../components/sale/OrderHistoryModal";
 import PaymentModal from "../components/sale/PaymentModal";
 import CustomerModal from "../components/sale/CustomerModal";
-import CustomerDebtModal from "../components/sale/CustomerDebtModal"; // 🟢 1. ນຳເຂົ້າ Modal ຈັດການໜີ້ສິນ
+import CustomerDebtModal from "../components/sale/CustomerDebtModal";
 //print
 import InvoiceA4 from "../components/InvoiceA4";
 import QuotationA4 from "../components/QuotationA4";
@@ -115,7 +115,7 @@ const SalePage = () => {
         search,
         category_id: selectedCategory || null,
       });
-      setProducts(res.data.data || res.data);
+      setProducts(res.data.data || res.data || []);
     } catch (err) {
       toast.error("ໂຫລດສິນຄ້າບໍ່ສຳເລັດ");
     } finally {
@@ -130,36 +130,6 @@ const SalePage = () => {
     } catch (err) {
       toast.error("ໂຫລດຂໍ້ມູນລູກຄ້າບໍ່ສຳເລັດ");
     }
-  };
-
-  const handleOpenHistoryModal = async () => {
-    try {
-      const res = await orderApi.getOrders();
-      setOrdersHistory(res.data || []);
-      setShowHistoryModal(true);
-    } catch (err) {
-      toast.error("ບໍ່ສາມາດໂຫລດປະຫວັດການຂາຍໄດ້");
-    }
-  };
-
-  const filteredOrders = ordersHistory.filter((order) => {
-    const orderDateStr = order.created_at || order.order_date;
-    if (!orderDateStr) return false;
-    return orderDateStr.startsWith(filterDate);
-  });
-
-  const handlePrintExistingOrder = async (order) => {
-    const customerObj =
-      customers.find((c) => c.customer_id === order.customer_id) || null;
-    await setPrintData({
-      orderData: order,
-      customer: customerObj,
-      cartItems: order.items || [],
-    });
-
-    setTimeout(() => {
-      handlePrint();
-    }, 300);
   };
 
   const handleOpenAddModal = () => {
@@ -188,7 +158,7 @@ const SalePage = () => {
     try {
       if (isEditMode) {
         const res = await customerApi.updateCustomer(editingCustId, custForm);
-        toast.success(res.data.message || "ແກ້ໄຂຂໍ້ມູນລູກຄ້າສຳເລັດ!");
+        toast.success(res.message || "ແກ້ໄຂຂໍ້ມູນລູກຄ້າສຳເລັດ!");
         if (
           selectedCustomerObj &&
           selectedCustomerObj.customer_id === editingCustId
@@ -197,7 +167,7 @@ const SalePage = () => {
         }
       } else {
         const res = await customerApi.createCustomer(custForm);
-        toast.success(res.data.message || "ເພີ່ມຂໍ້ມູນລູກຄ້າສຳເລັດ!");
+        toast.success(res.message || "ເພີ່ມຂໍ້ມູນລູກຄ້າສຳເລັດ!");
       }
       setShowCustModal(false);
       fetchCustomers();
@@ -210,7 +180,7 @@ const SalePage = () => {
     if (window.confirm("ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລຶບລູກຄ້າຄົນນີ້?")) {
       try {
         const res = await customerApi.deleteCustomer(id);
-        toast.success(res.data.message || "ລຶບລູກຄ້າສຳເລັດ!");
+        toast.success(res.message || "ລຶບລູກຄ້າສຳເລັດ!");
         if (selectedCustomerObj && selectedCustomerObj.customer_id === id) {
           setSelectedCustomerObj(null);
           setCustomerSearch("");
@@ -220,6 +190,36 @@ const SalePage = () => {
         toast.error(err.response?.data?.message || "ບໍ່ສາມາດລຶບໄດ້");
       }
     }
+  };
+
+  const handleOpenHistoryModal = async () => {
+    try {
+      const res = await orderApi.getOrders();
+      setOrdersHistory(res.data || res || []);
+      setShowHistoryModal(true);
+    } catch (err) {
+      toast.error("ບໍ່ສາມາດໂຫລດປະຫວັດການຂາຍໄດ້");
+    }
+  };
+
+  const filteredOrders = ordersHistory.filter((order) => {
+    const orderDateStr = order.created_at || order.order_date;
+    if (!orderDateStr) return false;
+    return orderDateStr.startsWith(filterDate);
+  });
+
+  const handlePrintExistingOrder = async (order) => {
+    const customerObj =
+      customers.find((c) => c.customer_id === order.customer_id) || null;
+    await setPrintData({
+      orderData: order,
+      customer: customerObj,
+      cartItems: order.items || [],
+    });
+
+    setTimeout(() => {
+      handlePrint();
+    }, 300);
   };
 
   const updateQty = (productId, newQty, stockQty) => {
@@ -317,10 +317,11 @@ const SalePage = () => {
     };
 
     try {
-      const res = await orderApi.createOrder(orderData);
-      if (res.status === 201) {
-        toast.success(res.data.message);
-        const createdOrder = res.data.order || orderData;
+      const res = await orderApi.createOrder(orderData); 
+      // if (res.status === 201) {
+      if (res.success == true) {
+        toast.success(res.message || "ບັນທຶກການຂາຍແລ້ວ");
+        const createdOrder = res.order || orderData;
 
         await setPrintData({
           orderData: createdOrder,
@@ -382,7 +383,7 @@ const SalePage = () => {
         cancel_reason: reason.trim(),
       });
 
-      toast.success(res.data.message || "ຍົກເລີກບິນສຳເລັດ!");
+      toast.success(res.data.message || res.message || "ຍົກເລີກບິນສຳເລັດ!");
 
       handleOpenHistoryModal();
       fetchProducts();

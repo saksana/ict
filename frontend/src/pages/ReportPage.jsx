@@ -20,7 +20,10 @@ export default function ReportPage() {
     try {
       let res;
       if (activeTab === "sales") {
-        res = await reportApi.getSalesReport({ start_date: startDate, end_date: endDate });
+        res = await reportApi.getSalesReport({
+          start_date: startDate,
+          end_date: endDate,
+        });
       } else if (activeTab === "top_products") {
         res = await reportApi.getTopProductsReport();
       } else if (activeTab === "low_stock") {
@@ -31,8 +34,8 @@ export default function ReportPage() {
         res = await reportApi.getCustomerReport();
       }
 
-      if (res?.data?.success) {
-        setReportData(res.data.data || []);
+      if (res?.success) {
+        setReportData(res.data || []);
       }
     } catch (err) {
       console.error("Fetch report error:", err);
@@ -68,10 +71,31 @@ export default function ReportPage() {
   const tabs = [
     { id: "sales", label: "ຍອດຂາຍປະຈຳວັນ/ເດືອນ", icon: "fa-chart-line" },
     { id: "top_products", label: "ສິນຄ້າຂາຍດີ", icon: "fa-fire" },
-    { id: "low_stock", label: "ສິນຄ້າໃກ້ໝົດສະຕັອກ", icon: "fa-exclamation-triangle" },
+    {
+      id: "low_stock",
+      label: "ສິນຄ້າໃກ້ໝົດສະຕັອກ",
+      icon: "fa-exclamation-triangle",
+    },
     { id: "stock_in", label: "ການນຳເຂົ້າສິນຄ້າ", icon: "fa-truck-loading" },
     { id: "customers", label: "ລາຍງານລູກຄ້າ", icon: "fa-users" },
   ];
+
+  // 🟢 ຟັງຊັນ Format ວັນທີ ແລະ ເວລາແບບ 24 ຊົ່ວໂມງ
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+
+    return date.toLocaleString("lo-LA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false, // บັງຄັບໃຊ້ລະບົບ 24 ຊົ່ວໂມງ
+    });
+  };
 
   return (
     <div className="pt-20 p-6 space-y-6 font-lao bg-gray-50 min-h-screen">
@@ -124,14 +148,20 @@ export default function ReportPage() {
                 : "bg-white border-gray-100 hover:border-orange-200 text-slate-700 shadow-sm"
             }`}
           >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
-              activeTab === tab.id ? "bg-white/20 text-white" : "bg-orange-50 text-orange-500"
-            }`}>
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
+                activeTab === tab.id
+                  ? "bg-white/20 text-white"
+                  : "bg-orange-50 text-orange-500"
+              }`}
+            >
               <i className={`fas ${tab.icon}`}></i>
             </div>
             <div>
               <h3 className="font-bold text-sm line-clamp-1">{tab.label}</h3>
-              <p className={`text-[10px] mt-0.5 ${activeTab === tab.id ? "text-orange-100" : "text-gray-400"}`}>
+              <p
+                className={`text-[10px] mt-0.5 ${activeTab === tab.id ? "text-orange-100" : "text-gray-400"}`}
+              >
                 ກົດເພື່ອເບິ່ງລາຍລະອຽດ
               </p>
             </div>
@@ -173,7 +203,10 @@ export default function ReportPage() {
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
         <div className="p-4 border-b border-gray-100 flex justify-between items-center">
           <h3 className="font-bold text-slate-800 text-sm">
-            ລາຍລະອຽດລາຍງານ: <span className="text-orange-600">{tabs.find(t => t.id === activeTab)?.label}</span>
+            ລາຍລະອຽດລາຍງານ:{" "}
+            <span className="text-orange-600">
+              {tabs.find((t) => t.id === activeTab)?.label}
+            </span>
           </h3>
           <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
             ທັງໝົດ {reportData.length} ລາຍການ
@@ -238,7 +271,8 @@ export default function ReportPage() {
               {loading ? (
                 <tr>
                   <td colSpan="8" className="p-12 text-center text-gray-400">
-                    <i className="fas fa-spinner fa-spin mr-2 text-orange-500"></i> ກຳລັງໂຫຼດຂໍ້ມູນ...
+                    <i className="fas fa-spinner fa-spin mr-2 text-orange-500"></i>{" "}
+                    ກຳລັງໂຫຼດຂໍ້ມູນ...
                   </td>
                 </tr>
               ) : reportData.length === 0 ? (
@@ -249,53 +283,112 @@ export default function ReportPage() {
                 </tr>
               ) : (
                 reportData.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                  <tr
+                    key={idx}
+                    className="hover:bg-gray-50/50 transition-colors"
+                  >
                     <td className="p-4 text-gray-500">{idx + 1}</td>
                     {activeTab === "sales" && (
                       <>
-                        <td className="p-4 font-bold text-orange-600">#{row.order_id}</td>
-                        <td className="p-4 font-medium text-slate-800">{row.customer_name || "ລູກຄ້າທົ່ວໄປ"}</td>
-                        <td className="p-4 text-right font-mono">{Number(row.total_amount).toLocaleString()} ₭</td>
-                        <td className="p-4 text-right font-mono text-red-500">-{Number(row.discount).toLocaleString()} ₭</td>
-                        <td className="p-4 text-right font-mono font-black text-slate-800">{Number(row.net_amount).toLocaleString()} ₭</td>
-                        <td className="p-4 text-xs text-gray-500 font-mono">{new Date(row.created_at).toLocaleString("lo-LA")}</td>
+                        <td className="p-4 font-bold text-orange-600">
+                          {row.order_no}
+                        </td>
+                        <td className="p-4 font-medium text-slate-800">
+                          {row.customer_name || "ລູກຄ້າທົ່ວໄປ"}
+                        </td>
+                        <td className="p-4 text-right font-mono">
+                          {Number(row.total_amount).toLocaleString()} ₭
+                        </td>
+                        <td className="p-4 text-right font-mono text-red-500">
+                          -{Number(row.discount).toLocaleString()} ₭
+                        </td>
+                        <td className="p-4 text-right font-mono font-black text-slate-800">
+                          {Number(row.net_amount).toLocaleString()} ₭
+                        </td>
+                        <td className="p-4 text-xs text-gray-500 font-mono">
+                          {formatDateTime(row.created_at)}
+                        </td>
                       </>
                     )}
                     {activeTab === "top_products" && (
                       <>
-                        <td className="p-4 font-mono text-xs text-gray-500">{row.barcode}</td>
-                        <td className="p-4 font-bold text-slate-800">{row.product_name}</td>
-                        <td className="p-4 text-center font-bold text-orange-600">{row.total_qty_sold}</td>
-                        <td className="p-4 text-right font-mono font-black">{Number(row.total_revenue).toLocaleString()} ₭</td>
+                        <td className="p-4 font-mono text-xs text-gray-500">
+                          {row.barcode}
+                        </td>
+                        <td className="p-4 font-bold text-slate-800">
+                          {row.product_name}
+                        </td>
+                        <td className="p-4 text-center font-bold text-orange-600">
+                          {row.total_qty_sold}
+                        </td>
+                        <td className="p-4 text-right font-mono font-black">
+                          {Number(row.total_revenue).toLocaleString()} ₭
+                        </td>
                       </>
                     )}
                     {activeTab === "low_stock" && (
                       <>
-                        <td className="p-4 font-mono text-xs text-gray-500">{row.barcode}</td>
-                        <td className="p-4 font-bold text-slate-800">{row.product_name}</td>
-                        <td className="p-4"><span className="bg-orange-50 text-orange-600 px-2.5 py-0.5 rounded-full text-xs">{row.category_name}</span></td>
-                        <td className="p-4 text-center font-bold text-red-500 bg-red-50/50">{row.stock_qty}</td>
-                        <td className="p-4 text-right font-mono">{Number(row.sale_price).toLocaleString()} ₭</td>
+                        <td className="p-4 font-mono text-xs text-gray-500">
+                          {row.barcode}
+                        </td>
+                        <td className="p-4 font-bold text-slate-800">
+                          {row.product_name}
+                        </td>
+                        <td className="p-4">
+                          <span className="bg-orange-50 text-orange-600 px-2.5 py-0.5 rounded-full text-xs">
+                            {row.category_name}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center font-bold text-red-500 bg-red-50/50">
+                          {row.stock_qty}
+                        </td>
+                        <td className="p-4 text-right font-mono">
+                          {Number(row.sale_price).toLocaleString()} ₭
+                        </td>
                       </>
                     )}
                     {activeTab === "stock_in" && (
                       <>
-                        <td className="p-4 text-xs text-gray-500 font-mono">{new Date(row.created_at).toLocaleString("lo-LA")}</td>
-                        <td className="p-4 font-mono text-xs text-gray-500">{row.barcode}</td>
-                        <td className="p-4 font-bold text-slate-800">{row.product_name}</td>
-                        <td className="p-4 text-center font-bold text-emerald-600">+{row.quantity}</td>
-                        <td className="p-4 text-gray-600">{row.staff_name || "-"}</td>
-                        <td className="p-4 text-xs text-gray-400">{row.comment || "-"}</td>
+                        <td className="p-4 text-xs text-gray-500 font-mono">
+                          {formatDateTime(row.created_at)}
+                        </td>
+                        <td className="p-4 font-mono text-xs text-gray-500">
+                          {row.barcode}
+                        </td>
+                        <td className="p-4 font-bold text-slate-800">
+                          {row.product_name}
+                        </td>
+                        <td className="p-4 text-center font-bold text-emerald-600">
+                          +{row.quantity}
+                        </td>
+                        <td className="p-4 text-gray-600">
+                          {row.staff_name || "-"}
+                        </td>
+                        <td className="p-4 text-xs text-gray-400">
+                          {row.comment || "-"}
+                        </td>
                       </>
                     )}
                     {activeTab === "customers" && (
                       <>
-                        <td className="p-4 font-bold text-slate-800">{row.customer_name}</td>
-                        <td className="p-4 text-gray-600 font-mono">{row.phone || "-"}</td>
-                        <td className="p-4 text-xs text-gray-500">{row.address || "-"}</td>
-                        <td className="p-4 text-center font-bold text-purple-600">{row.points} Pts</td>
-                        <td className="p-4 text-center font-bold">{row.total_orders} ບິນ</td>
-                        <td className="p-4 text-right font-mono font-black text-orange-600">{Number(row.total_spent).toLocaleString()} ₭</td>
+                        <td className="p-4 font-bold text-slate-800">
+                          {row.customer_name}
+                        </td>
+                        <td className="p-4 text-gray-600 font-mono">
+                          {row.phone || "-"}
+                        </td>
+                        <td className="p-4 text-xs text-gray-500">
+                          {row.address || "-"}
+                        </td>
+                        <td className="p-4 text-center font-bold text-purple-600">
+                          {row.points} Pts
+                        </td>
+                        <td className="p-4 text-center font-bold">
+                          {row.total_orders} ບິນ
+                        </td>
+                        <td className="p-4 text-right font-mono font-black text-orange-600">
+                          {Number(row.total_spent).toLocaleString()} ₭
+                        </td>
                       </>
                     )}
                   </tr>
@@ -310,9 +403,10 @@ export default function ReportPage() {
       <div className="hidden">
         <PrintableReport
           ref={printComponentRef}
-          title={tabs.find(t => t.id === activeTab)?.label}
+          title={tabs.find((t) => t.id === activeTab)?.label}
           data={reportData}
           activeTab={activeTab}
+          formatDateTime={formatDateTime}
         />
       </div>
     </div>
@@ -320,14 +414,22 @@ export default function ReportPage() {
 }
 
 // 📄 Component ສຳລັບຈັດ Layout ເວລາ Print (ອອກແບບໃໝ່ໃຫ້ສວຍງາມເປັນທາງການ)
-const PrintableReport = React.forwardRef(({ title, data, activeTab }, ref) => {
+const PrintableReport = React.forwardRef(({ title, data, activeTab, formatDateTime }, ref) => {
   const currentDate = new Date().toLocaleString("lo-LA", {
-    dateStyle: "full",
-    timeStyle: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
   });
 
   return (
-    <div ref={ref} className="p-10 bg-white text-slate-800 font-lao max-w-[210mm] mx-auto text-sm">
+    <div
+      ref={ref}
+      className="p-10 bg-white text-slate-800 font-lao max-w-[210mm] mx-auto text-sm"
+    >
       {/* ຫົວບິນບໍລິສັດ */}
       <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-6">
         <div>
@@ -337,14 +439,18 @@ const PrintableReport = React.forwardRef(({ title, data, activeTab }, ref) => {
           <p className="text-xs text-slate-500 mt-1">
             ຖະໜົນດົງຈອງ, ບ້ານ ແສງສະຫວ່າງ, ເມືອງ ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ
           </p>
-          <p className="text-xs text-slate-500">ໂທ: 020 55502190 | Email: info@mvpshop.com</p>
+          <p className="text-xs text-slate-500">
+            ໂທ: 020 55502190 | Email: info@mvpshop.com
+          </p>
         </div>
         <div className="text-right">
           <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight">
             ບົດລາຍງານ (REPORT)
           </h2>
           <p className="text-xs font-bold text-orange-600 mt-1">{title}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">ວັນທີພິມ: {currentDate}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            ວັນທີພິມ: {currentDate}
+          </p>
         </div>
       </div>
 
@@ -352,7 +458,9 @@ const PrintableReport = React.forwardRef(({ title, data, activeTab }, ref) => {
       <table className="w-full text-left border-collapse text-xs mb-10">
         <thead>
           <tr className="bg-slate-800 text-white font-bold uppercase">
-            <th className="p-3 text-center rounded-l-xl w-12 border-0">ລຳດັບ</th>
+            <th className="p-3 text-center rounded-l-xl w-12 border-0">
+              ລຳດັບ
+            </th>
             {activeTab === "sales" && (
               <>
                 <th className="p-3 border-0">ເລກທີບິນ</th>
@@ -368,7 +476,9 @@ const PrintableReport = React.forwardRef(({ title, data, activeTab }, ref) => {
                 <th className="p-3 border-0">Barcode</th>
                 <th className="p-3 border-0">ຊື່ສິນຄ້າ</th>
                 <th className="p-3 border-0 text-center">ຈຳນວນຂາຍ</th>
-                <th className="p-3 border-0 text-right rounded-r-xl">ລາຍໄດ້ລວມ</th>
+                <th className="p-3 border-0 text-right rounded-r-xl">
+                  ລາຍໄດ້ລວມ
+                </th>
               </>
             )}
             {activeTab === "low_stock" && (
@@ -377,7 +487,9 @@ const PrintableReport = React.forwardRef(({ title, data, activeTab }, ref) => {
                 <th className="p-3 border-0">ຊື່ສິນຄ້າ</th>
                 <th className="p-3 border-0">ໝວດໝູ່</th>
                 <th className="p-3 border-0 text-center">ຄົງເຫຼືອ</th>
-                <th className="p-3 border-0 text-right rounded-r-xl">ລາຄາຂາຍ</th>
+                <th className="p-3 border-0 text-right rounded-r-xl">
+                  ລາຄາຂາຍ
+                </th>
               </>
             )}
             {activeTab === "stock_in" && (
@@ -395,7 +507,9 @@ const PrintableReport = React.forwardRef(({ title, data, activeTab }, ref) => {
                 <th className="p-3 border-0">ເບີໂທ</th>
                 <th className="p-3 border-0 text-center">ຄະແນນ</th>
                 <th className="p-3 border-0 text-center">ຈຳນວນບິນ</th>
-                <th className="p-3 border-0 text-right rounded-r-xl">ຍອດຊື້ລວມ</th>
+                <th className="p-3 border-0 text-right rounded-r-xl">
+                  ຍອດຊື້ລວມ
+                </th>
               </>
             )}
           </tr>
@@ -410,50 +524,90 @@ const PrintableReport = React.forwardRef(({ title, data, activeTab }, ref) => {
           ) : (
             data.map((row, idx) => (
               <tr key={idx} className="hover:bg-slate-50">
-                <td className="p-3 text-center text-slate-400 font-mono">{idx + 1}</td>
+                <td className="p-3 text-center text-slate-400 font-mono">
+                  {idx + 1}
+                </td>
                 {activeTab === "sales" && (
                   <>
-                    <td className="p-3 font-bold text-orange-600 font-mono">#{row.order_id}</td>
-                    <td className="p-3 font-medium">{row.customer_name || "ລູກຄ້າທົ່ວໄປ"}</td>
-                    <td className="p-3 text-right font-mono">{Number(row.total_amount).toLocaleString()} ₭</td>
-                    <td className="p-3 text-right font-mono text-red-500">-{Number(row.discount).toLocaleString()} ₭</td>
-                    <td className="p-3 text-right font-mono font-bold">{Number(row.net_amount).toLocaleString()} ₭</td>
-                    <td className="p-3 text-xs text-slate-500 font-mono">{new Date(row.created_at).toLocaleString("lo-LA")}</td>
+                    <td className="p-3 font-bold text-orange-600 font-mono">
+                      #{row.order_id}
+                    </td>
+                    <td className="p-3 font-medium">
+                      {row.customer_name || "ລູກຄ້າທົ່ວໄປ"}
+                    </td>
+                    <td className="p-3 text-right font-mono">
+                      {Number(row.total_amount).toLocaleString()} ₭
+                    </td>
+                    <td className="p-3 text-right font-mono text-red-500">
+                      -{Number(row.discount).toLocaleString()} ₭
+                    </td>
+                    <td className="p-3 text-right font-mono font-bold">
+                      {Number(row.net_amount).toLocaleString()} ₭
+                    </td>
+                    <td className="p-3 text-xs text-slate-500 font-mono">
+                      {formatDateTime(row.created_at)}
+                    </td>
                   </>
                 )}
                 {activeTab === "top_products" && (
                   <>
-                    <td className="p-3 font-mono text-xs text-slate-500">{row.barcode}</td>
+                    <td className="p-3 font-mono text-xs text-slate-500">
+                      {row.barcode}
+                    </td>
                     <td className="p-3 font-bold">{row.product_name}</td>
-                    <td className="p-3 text-center font-bold text-orange-600">{row.total_qty_sold}</td>
-                    <td className="p-3 text-right font-mono font-bold">{Number(row.total_revenue).toLocaleString()} ₭</td>
+                    <td className="p-3 text-center font-bold text-orange-600">
+                      {row.total_qty_sold}
+                    </td>
+                    <td className="p-3 text-right font-mono font-bold">
+                      {Number(row.total_revenue).toLocaleString()} ₭
+                    </td>
                   </>
                 )}
                 {activeTab === "low_stock" && (
                   <>
-                    <td className="p-3 font-mono text-xs text-slate-500">{row.barcode}</td>
+                    <td className="p-3 font-mono text-xs text-slate-500">
+                      {row.barcode}
+                    </td>
                     <td className="p-3 font-bold">{row.product_name}</td>
                     <td className="p-3">{row.category_name}</td>
-                    <td className="p-3 text-center font-bold text-red-600 bg-red-50">{row.stock_qty}</td>
-                    <td className="p-3 text-right font-mono">{Number(row.sale_price).toLocaleString()} ₭</td>
+                    <td className="p-3 text-center font-bold text-red-600 bg-red-50">
+                      {row.stock_qty}
+                    </td>
+                    <td className="p-3 text-right font-mono">
+                      {Number(row.sale_price).toLocaleString()} ₭
+                    </td>
                   </>
                 )}
                 {activeTab === "stock_in" && (
                   <>
-                    <td className="p-3 text-xs text-slate-500 font-mono">{new Date(row.created_at).toLocaleString("lo-LA")}</td>
-                    <td className="p-3 font-mono text-xs text-slate-500">{row.barcode}</td>
+                    <td className="p-3 text-xs text-slate-500 font-mono">
+                      {formatDateTime(row.created_at)}
+                    </td>
+                    <td className="p-3 font-mono text-xs text-slate-500">
+                      {row.barcode}
+                    </td>
                     <td className="p-3 font-bold">{row.product_name}</td>
-                    <td className="p-3 text-center font-bold text-emerald-600">+{row.quantity}</td>
+                    <td className="p-3 text-center font-bold text-emerald-600">
+                      +{row.quantity}
+                    </td>
                     <td className="p-3">{row.staff_name || "-"}</td>
                   </>
                 )}
                 {activeTab === "customers" && (
                   <>
                     <td className="p-3 font-bold">{row.customer_name}</td>
-                    <td className="p-3 text-slate-500 font-mono">{row.phone || "-"}</td>
-                    <td className="p-3 text-center font-bold text-purple-600">{row.points} Pts</td>
-                    <td className="p-3 text-center font-bold">{row.total_orders} ບິນ</td>
-                    <td className="p-3 text-right font-mono font-bold text-orange-600">{Number(row.total_spent).toLocaleString()} ₭</td>
+                    <td className="p-3 text-slate-500 font-mono">
+                      {row.phone || "-"}
+                    </td>
+                    <td className="p-3 text-center font-bold text-purple-600">
+                      {row.points} Pts
+                    </td>
+                    <td className="p-3 text-center font-bold">
+                      {row.total_orders} ບິນ
+                    </td>
+                    <td className="p-3 text-right font-mono font-bold text-orange-600">
+                      {Number(row.total_spent).toLocaleString()} ₭
+                    </td>
                   </>
                 )}
               </tr>
@@ -467,12 +621,16 @@ const PrintableReport = React.forwardRef(({ title, data, activeTab }, ref) => {
         <div className="space-y-16">
           <p className="font-bold">ຜູ້ຈັດທຳລາຍງານ (Prepared By)</p>
           <div className="w-56 border-b border-slate-300 mx-auto"></div>
-          <p className="text-[11px] text-slate-400">ວັນທີ: .......................................</p>
+          <p className="text-[11px] text-slate-400">
+            ວັນທີ: .......................................
+          </p>
         </div>
         <div className="space-y-16">
           <p className="font-bold">ຜູ້ອະນຸມັດ (Approved By)</p>
           <div className="w-56 border-b border-slate-300 mx-auto"></div>
-          <p className="text-[11px] text-slate-400">ວັນທີ: .......................................</p>
+          <p className="text-[11px] text-slate-400">
+            ວັນທີ: .......................................
+          </p>
         </div>
       </div>
     </div>

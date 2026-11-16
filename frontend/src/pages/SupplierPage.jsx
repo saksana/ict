@@ -51,7 +51,7 @@ const SupplierPage = () => {
       });
 
       if (res.data) {
-        const fetchedData = res.data.data || [];
+        const fetchedData = res.data || [];
         const pagInfo = res.data.pagination || {
           totalItems: 0,
           totalPages: 1,
@@ -174,10 +174,10 @@ const SupplierPage = () => {
 
       if (editId) {
         const res = await supplierApi.updateSupplier(editId, payload);
-        toast.success(res.data?.message || "ແກ້ໄຂຂໍ້ມູນຜູ້ສະໜອງສຳເລັດ!");
+        toast.success(res?.message || "ແກ້ໄຂຂໍ້ມູນຜູ້ສະໜອງສຳເລັດ!");
       } else {
         const res = await supplierApi.createSupplier(payload);
-        toast.success(res.data?.message || "ເພີ່ມຂໍ້ມູນຜູ້ສະໜອງສຳເລັດ!");
+        toast.success(res?.message || "ເພີ່ມຂໍ້ມູນຜູ້ສະໜອງສຳເລັດ!");
       }
       closeForm();
       fetchSuppliers();

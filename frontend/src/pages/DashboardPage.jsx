@@ -21,8 +21,10 @@ const DashboardPage = () => {
     setIsLoading(true);
     try {
       const res = await dashboardApi.getDashboardStats();
-      if (res.data?.success) {
-        setStats(res.data.data);
+      
+      // ຍ້ອນວ່າ Service Extract .data ມາແລ້ວ res ຈະຄື object { success, data } 
+      if (res) {
+        setStats(res.data || {});
       }
     } catch (err) {
       console.error("Fetch dashboard error:", err);
@@ -30,6 +32,18 @@ const DashboardPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const formatDateTime = (dateString) => {
+      if (!dateString) return "-";
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+
+      return `${day}/${month}/${year}`;
   };
 
   if (isLoading) {
@@ -144,7 +158,9 @@ const DashboardPage = () => {
               {stats.recent_sales && stats.recent_sales.length > 0 ? (
                 stats.recent_sales.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="p-3 font-medium text-gray-800">{item.sale_date}</td>
+                    <td className="p-3 font-medium text-gray-800 font-mono">
+                      {formatDateTime(item.sale_date)}
+                    </td>
                     <td className="p-3 text-center text-gray-600 font-mono font-bold">{item.daily_orders} ບິນ</td>
                     <td className="p-3 text-right font-mono font-black text-orange-600">
                       {Number(item.daily_sales).toLocaleString()} ₭

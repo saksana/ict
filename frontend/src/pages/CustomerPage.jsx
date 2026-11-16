@@ -49,9 +49,10 @@ const CustomerPage = () => {
         limit,
       });
 
-      if (res.data) {
-        const fetchedData = res.data.data || [];
-        const pagInfo = res.data.pagination || {
+      // ປັບມາຮັບ res ໂດຍກົງ ເພາະ Service Extract .data ມາໃຫ້ແລ້ວ
+      if (res) {
+        const fetchedData = res.data || [];
+        const pagInfo = res.pagination || {
           totalItems: 0,
           totalPages: 1,
           currentPage: 1,
@@ -123,7 +124,6 @@ const CustomerPage = () => {
 
   const handleEdit = (customer) => {
     setEditId(customer.customer_id);
-
     setFormData({
       customer_name: customer.customer_name || "",
       phone: customer.phone || "",
@@ -145,17 +145,20 @@ const CustomerPage = () => {
   const handleSave = async (e) => {
     e.preventDefault();
 
-    if (!formData.customer_name.trim()) {
+    const trimmedName = formData.customer_name.trim();
+    const trimmedPhone = formData.phone.trim();
+
+    if (!trimmedName) {
       toast.error("ກະລຸນາປ້ອນຊື່ລູກຄ້າ!");
       return;
     }
 
-    if (!formData.phone.trim()) {
+    if (!trimmedPhone) {
       toast.error("ກະລຸນາປ້ອນເບີໂທລະສັບ!");
       return;
     }
 
-    if (formData.phone.length < 8) {
+    if (trimmedPhone.length < 8) {
       toast.error("ກະລຸນາປ້ອນເບີໂທລະສັບໃຫ້ຄົບ 8 ຫຼັກ!");
       return;
     }
@@ -163,19 +166,19 @@ const CustomerPage = () => {
     setIsSubmitting(true);
     try {
       const payload = {
-        customer_name: formData.customer_name.trim(),
-        phone: formData.phone.trim(),
+        customer_name: trimmedName,
+        phone: trimmedPhone,
         address: formData.address.trim() || null,
-        points: Number(formData.points) || 0,
       };
 
+      let res;
       if (editId) {
-        const res = await customerApi.updateCustomer(editId, payload);
-        toast.success(res.data?.message || "ແກ້ໄຂຂໍ້ມູນລູກຄ້າສຳເລັດ!");
+        res = await customerApi.updateCustomer(editId, payload);
       } else {
-        const res = await customerApi.createCustomer(payload);
-        toast.success(res.data?.message || "ເພີ່ມຂໍ້ມູນລູກຄ້າສຳເລັດ!");
+        res = await customerApi.createCustomer(payload);
       }
+
+      toast.success(res?.message || (editId ? "ແກ້ໄຂຂໍ້ມູນລູກຄ້າສຳເລັດ!" : "ເພີ່ມຂໍ້ມູນລູກຄ້າສຳເລັດ!"));
       closeForm();
       fetchCustomers();
     } catch (err) {
@@ -193,8 +196,8 @@ const CustomerPage = () => {
       text: `ທ່ານຕ້ອງການລົບຂໍ້ມູນລູກຄ້າ "${name}" ອອກຈາກລະບົບແທ້ບໍ?`,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#ef4444", // Tailwind red-500
-      cancelButtonColor: "#6b7280", // Tailwind gray-500
+      confirmButtonColor: "#ef4444", 
+      cancelButtonColor: "#6b7280", 
       confirmButtonText: "ລົບເລີຍ!",
       cancelButtonText: "ຍົກເລີກ",
       reverseButtons: true,
@@ -209,9 +212,9 @@ const CustomerPage = () => {
 
         Swal.fire({
           title: "ລົບສຳເລັດ!",
-          text: res.data?.message || "ຂໍ້ມູນຖືກລົບเรียบร้อยແລ້ວ.",
+          text: res?.message || "ຂໍ້ມູນຖືກລົບຮຽບຮ້ອຍແລ້ວ.",
           icon: "success",
-          confirmButtonColor: "#f97316", // Tailwind orange-500
+          confirmButtonColor: "#f97316", 
           customClass: {
             popup: "rounded-2xl font-lao",
           },

@@ -24,7 +24,6 @@ import ManagePage from "./pages/ManagePage";
 import CategoryPage from "./pages/CategoryPage";
 import CustomerPage from "./pages/CustomerPage";
 import SupplierPage from "./pages/SupplierPage";
-import ImportPage from "./pages/ImportPage";
 import SettingPage from "./pages/SettingPage";
 import ReportPage from "./pages/ReportPage"
 
@@ -117,7 +116,6 @@ function App() {
             <Route path="/categories" element={<CategoryPage />} />
             <Route path="/customers" element={<CustomerPage />} />
             <Route path="/suppliers" element={<SupplierPage />} />
-            <Route path="/imports" element={<ImportPage />} />
             <Route path="/settings" element={<SettingPage />} />
           </Route>
         </Route>

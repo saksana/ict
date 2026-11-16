@@ -1,7 +1,31 @@
-import axios from "./axios"; // ປັບ path ໃຫ້ກົງກັບ project ຂອງທ່ານ
+import api from "./axios";
 
-export const getAllSuppliers = () => axios.get("/suppliers/all");
-export const getSuppliers = (params) => axios.get("/suppliers", { params });
-export const createSupplier = (data) => axios.post("/suppliers", data);
-export const updateSupplier = (id, data) => axios.put(`/suppliers/${id}`, data);
-export const deleteSupplier = (id) => axios.delete(`/suppliers/${id}`);
+// ດຶງຂໍ້ມູນຜູ້ສະໜອງທັງໝົດ (ບໍ່ມີ Pagination)
+export const getAllSuppliers = async () => {
+  const response = await api.get("/suppliers/all");
+  return response.data;
+};
+
+// ດຶງຂໍ້ມູນຜູ້ສະໜອງ (ຮອງຮັບ Pagination / Search params)
+export const getSuppliers = async (params) => {
+  const response = await api.get("/suppliers", { params });
+  return response.data;
+};
+
+// ເພີ່ມຜູ້ສະໜອງໃໝ່
+export const createSupplier = async (data) => {
+  const response = await api.post("/suppliers", data);
+  return response.data;
+};
+
+// ແກ້ໄຂຂໍ້ມູນຜູ້ສະໜອງ
+export const updateSupplier = async (id, data) => {
+  const response = await api.put(`/suppliers/${id}`, data);
+  return response.data;
+};
+
+// ລຶບຜູ້ສະໜອງ
+export const deleteSupplier = async (id) => {
+  const response = await api.delete(`/suppliers/${id}`);
+  return response.data;
+};

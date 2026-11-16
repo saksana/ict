@@ -17,8 +17,8 @@ const DebtReceiptA4 = forwardRef(
         const fetchShop = async () => {
           try {
             const res = await shopApi.getShop();
-            if (res.data?.success && res.data.data) {
-              setShopInfo(res.data.data);
+            if (res?.success && res.data) {
+              setShopInfo(res.data);
             }
           } catch (err) {
             console.error("Failed to load shop info:", err);

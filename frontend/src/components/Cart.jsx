@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { toast } from "react-toastify";
 
 const Cart = ({
   cart,
@@ -24,8 +25,61 @@ const Cart = ({
   netAmount,
   setShowPaymentModal,
   onOpenQuotation,
-  onOpenDebtModal, // 🟢 1. ຮັບ Prop ສຳລັບເປີດ Modal ຈັດການໜີ້ສິນ
+  onOpenDebtModal,
 }) => {
+  // 1. State ສຳລັບຄວບຄຸມ Modal ປ້ອນຈຳນວນແບບ Custom
+  const [showQtyModal, setShowQtyModal] = useState(false);
+  const [activeItem, setActiveItem] = useState(null);
+  const [customQtyInput, setCustomQtyInput] = useState("");
+
+  // ຟັງຊັນຊ່ວຍໃສ່ comma ໃຫ້ຕົວເລກ
+  const formatNumber = (val) => {
+    if (val === "" || val === null || val === undefined) return "";
+    const cleanVal = val.toString().replace(/,/g, "");
+    if (isNaN(cleanVal)) return val;
+    return Number(cleanVal).toLocaleString();
+  };
+
+  // 2. ຟັງຊັນເປີດ Modal ປ້ອນຈຳນວນ
+  const handleOpenQtyModal = (item) => {
+    setActiveItem(item);
+    setCustomQtyInput(item.qty.toString());
+    setShowQtyModal(true);
+  };
+
+  // 3. ຟັງຊັນກົດປຸ່ມຕົວເລກໃນ Keypad
+  const handleNumClick = (num) => {
+    if (num === "clear") {
+      setCustomQtyInput("");
+    } else if (num === "backspace") {
+      setCustomQtyInput((prev) => (prev.length > 1 ? prev.slice(0, -1) : ""));
+    } else {
+      setCustomQtyInput((prev) => {
+        const cleanPrev = prev.replace(/,/g, "");
+        return cleanPrev === "0" ? num : cleanPrev + num;
+      });
+    }
+  };
+
+  // 4. ຟັງຊັນບັນທຶກຈຳນວນໃໝ່
+  const handleSaveQty = () => {
+    if (!activeItem) return;
+    
+    const cleanVal = customQtyInput.toString().replace(/,/g, "");
+    const qtyNum = cleanVal === "" ? 1 : Number(cleanVal);
+
+    if (qtyNum < 1) {
+      updateQty(activeItem.product_id, 0, activeItem.stock_qty);
+    } else if (qtyNum > Number(activeItem.stock_qty)) {
+      //alert(`ສິນຄ້າໃນສະຕັອກບໍ່ພໍ! (ເຫຼືອ ${activeItem.stock_qty} ຊິ້ນ)`);
+      toast.warning(`ສິນຄ້າໃນສະຕັອກບໍ່ພໍ! (ເຫຼືອ ${activeItem.stock_qty} ຊິ້ນ)`);
+      return;
+    } else {
+      updateQty(activeItem.product_id, qtyNum, activeItem.stock_qty);
+    }
+    setShowQtyModal(false);
+  };
+
   return (
     <>
       {showCartMobile && (
@@ -111,6 +165,7 @@ const Cart = ({
             <div className="relative">
               <input
                 type="text"
+                autoComplete="off"
                 placeholder="ຄົ້ນຫາ ຊື່ / ເບີໂທ / ລະຫັດລູກຄ້າ..."
                 className="w-full p-2.5 pl-9 border border-gray-200 rounded-xl bg-gray-50/50 outline-none focus:bg-white focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 text-sm transition-all text-gray-700 placeholder:text-gray-400"
                 value={customerSearch}
@@ -228,9 +283,16 @@ const Cart = ({
                     >
                       <i className="fas fa-minus text-[9px]"></i>
                     </button>
-                    <span className="font-bold text-sm w-7 text-center text-slate-800">
-                      {item.qty}
+                    
+                    {/* ຄລິກທີ່ຕົວເລກຈຳນວນ ເພື່ອເປີດ Custom Modal ປ້ອນຕົວເລກ */}
+                    <span
+                      onClick={() => handleOpenQtyModal(item)}
+                      className="font-bold text-sm w-9 text-center text-slate-800 cursor-pointer hover:text-orange-600 hover:bg-orange-50 rounded-lg py-0.5 transition-all"
+                      title="ຄລິກເພື່ອປ່ຽນຈຳນວນ"
+                    >
+                      {formatNumber(item.qty)}
                     </span>
+
                     <button
                       onClick={() =>
                         updateQty(item.product_id, item.qty + 1, item.stock_qty)
@@ -290,7 +352,7 @@ const Cart = ({
             </span>
           </div>
 
-          {/* 🟢 2. ປຸ່ມໃບສະເໜີລາຄາ ແລະ ປຸ່ມຈັດການໜີ້ສິນ (ວາງຄູ່ກັນ) */}
+          {/* ປຸ່ມໃບສະເໜີລາຄາ ແລະ ປຸ່ມຈັດການໜີ້ສິນ */}
           <div className="grid grid-cols-2 gap-2">
             <button
               disabled={cart.length === 0}
@@ -320,6 +382,91 @@ const Cart = ({
           </button>
         </div>
       </div>
+
+      {/* CUSTOM QUANTITY MODAL */}
+      {showQtyModal && activeItem && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 font-lao animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col">
+            {/* Header */}
+            <div className="p-4 bg-slate-800 text-white font-bold flex justify-between items-center">
+              <div className="flex items-center gap-2 truncate">
+                <i className="fas fa-edit text-orange-400"></i>
+                <span className="text-sm truncate">ປັບຈຳນວນ: {activeItem.product_name}</span>
+              </div>
+              <button
+                onClick={() => setShowQtyModal(false)}
+                className="w-7 h-7 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white/80 transition-all shrink-0"
+              >
+                <i className="fas fa-times text-xs"></i>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              <div className="text-center">
+                <span className="text-[11px] text-gray-400 font-bold block mb-1">
+                  ຄົງເຫຼືອໃນສະຕັອກ: <strong className="text-slate-700">{formatNumber(activeItem.stock_qty)}</strong> ຊິ້ນ
+                </span>
+                {/* Input ຮັບຄ່າ (ສະແດງຜົນແບບໃສ່ comma) */}
+                <input
+                  type="text"
+                  autoFocus
+                  className="w-full text-3xl font-black p-3 bg-gray-50 border-2 border-orange-500 rounded-2xl text-center outline-none text-slate-800 font-mono shadow-inner"
+                  value={formatNumber(customQtyInput)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/,/g, "");
+                    if (val === "" || !isNaN(val)) {
+                      setCustomQtyInput(val);
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Keypad */}
+              <div className="grid grid-cols-3 gap-2">
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "backspace"].map((btn) => (
+                  <button
+                    key={btn}
+                    type="button"
+                    onClick={() => {
+                      if (btn === "clear") handleNumClick("clear");
+                      else if (btn === "backspace") handleNumClick("backspace");
+                      else handleNumClick(btn);
+                    }}
+                    className="py-3 bg-gray-100 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 border border-gray-200/60 rounded-xl font-black text-slate-700 text-base transition-all active:scale-95 shadow-sm flex items-center justify-center"
+                  >
+                    {btn === "clear" ? (
+                      <span className="text-xs text-red-500 font-bold">ລ້າງ</span>
+                    ) : btn === "backspace" ? (
+                      <i className="fas fa-backspace text-gray-500"></i>
+                    ) : (
+                      btn
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowQtyModal(false)}
+                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-slate-600 rounded-xl font-bold text-xs transition-all"
+                >
+                  ຍົກເລີກ
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveQty}
+                  className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-all active:scale-98"
+                >
+                  ຢືນຢັນ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -1,7 +1,13 @@
-import api from "./axios"; // ໃຊ້ axios instance ຫຼັກຂອງ project (ທີ່ປັບ BaseURL ແລະ Token ໄວ້ແລ້ວ)
+import api from "./axios";
 
 // ດຶງປະຫວັດການເຄື່ອນໄຫວ Stock ທັງໝົດ
-export const getStockHistory = () => api.get("/stock/history");
+export const getStockHistory = async (params) => {
+  const response = await api.get("/stock/history", { params });
+  return response.data;
+};
 
-// ບັນທຶກນຳເຂົ້າ Stock (Stock IN)
-export const createStockIn = (data) => api.post("/stock/in", data);
+// ບັນທຶກນຳເຂົ້າ Stock (ຖ້າ Backend ໃຊ້ Route ນີ້)
+// export const createStockIn = async (data) => {
+//   const response = await api.post("/stock/in", data);
+//   return response.data;
+// };

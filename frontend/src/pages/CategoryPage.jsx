@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import * as categoryApi from "../api/categoryApi";
 import { toast } from "react-toastify";
-import Swal from "sweetalert2"; // 1. Import SweetAlert2 ເຂົ້າມາ
+import Swal from "sweetalert2";
 
 const CategoryPage = () => {
   // --- 1. States Management ---
@@ -29,7 +29,7 @@ const CategoryPage = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
+      setPage(1); // Reset ໄປໜ້າ 1 ເວລາມີການຄ้นຫາ
     }, 400);
 
     return () => clearTimeout(timer);
@@ -45,14 +45,16 @@ const CategoryPage = () => {
         limit,
       });
 
-      if (res.data) {
-        const fetchedData = res.data.data || [];
-        const pagInfo = res.data.pagination || {
+      // ຍ້ອນວ່າ API Service ດຶງ res.data ມາແລ້ວ structure ຈະເປັນ { success, data, pagination }
+      if (res) {
+        const fetchedData = res.data || [];
+        const pagInfo = res.pagination || {
           totalItems: 0,
           totalPages: 1,
           currentPage: 1,
         };
 
+        // ຖ້າหน้าปัจจุบันเกิน totalPages (ເຊັ່ນ: ລົບຂໍ້ມູນໝົດໜ້າ) ໃຫ້ຖອຍຫຼັງມາໜ້າສຸດທ້າຍ
         if (fetchedData.length === 0 && page > 1 && page > pagInfo.totalPages) {
           setPage(pagInfo.totalPages);
           return;
@@ -63,7 +65,7 @@ const CategoryPage = () => {
       }
     } catch (err) {
       console.error("Fetch categories error:", err);
-      toast.error("ບໍ່ສາມາດໂຫລດຂໍ້ມູນໝວດໝູ່ໄດ້");
+      toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນໝວດໝູ່ໄດ້");
     } finally {
       setIsLoading(false);
     }
@@ -96,26 +98,25 @@ const CategoryPage = () => {
     setCategoryName("");
   };
 
+  // 🛠️ Refactored handleSave: ຫຼຸດ Code ຊ້ຳຊ້ອນ (DRY Principle)
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!categoryName.trim()) {
+    const trimmedName = categoryName.trim();
+    if (!trimmedName) {
       toast.error("ກະລຸນາປ້ອນຊື່ໝວດໝູ່!");
       return;
     }
 
     setIsSubmitting(true);
     try {
+      let res;
       if (editId) {
-        const res = await categoryApi.updateCategory(editId, {
-          category_name: categoryName.trim(),
-        });
-        toast.success(res.data?.message || "ແກ້ໄຂໝວດໝູ່ສຳເລັດ!");
+        res = await categoryApi.updateCategory(editId, { category_name: trimmedName });
       } else {
-        const res = await categoryApi.createCategory({
-          category_name: categoryName.trim(),
-        });
-        toast.success(res.data?.message || "ເພີ່ມໝວດໝູ່ສຳເລັດ!");
+        res = await categoryApi.createCategory({ category_name: trimmedName });
       }
+
+      toast.success(res?.message || (editId ? "ແກ້ໄຂໝວດໝູ່ສຳເລັດ!" : "ເພີ່ມໝວດໝູ່ສຳເລັດ!"));
       closeForm();
       fetchCategories();
     } catch (err) {
@@ -125,34 +126,32 @@ const CategoryPage = () => {
     }
   };
 
-  // 2. ປ່ຽນ handleDelete ມາໃຊ້ SweetAlert2
+  // handleDelete ໃຊ້ SweetAlert2
   const handleDelete = async (id, name) => {
     const result = await Swal.fire({
       title: "ຢືນຢັນການລົບ?",
       text: `ທ່ານຕ້ອງການລົບໝວດໝູ່ "${name}" ອອກຈາກລະບົບແທ້ບໍ?`,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#ef4444", // ສີແດງ (Tailwind red-500)
-      cancelButtonColor: "#6b7280",  // ສີເທົາ (Tailwind gray-500)
+      confirmButtonColor: "#ef4444", 
+      cancelButtonColor: "#6b7280",  
       confirmButtonText: "ລົບເລີຍ!",
       cancelButtonText: "ຍົກເລີກ",
-      reverseButtons: true,         // ເອົາປຸ່ມ Cancel ໄວ້ຊ້າຍ, Confirm ໄວ້ຂວາ
+      reverseButtons: true,         
       customClass: {
-        popup: "rounded-2xl font-lao", // ໃສ່ font-lao ໃຫ້ Alert ແຈ້ງເຕືອນ
+        popup: "rounded-2xl font-lao", 
       },
     });
 
-    // ຖ້າຜູ້ໃຊ້ກົດ Confirm "ລົບເລີຍ!"
     if (result.isConfirmed) {
       try {
         const res = await categoryApi.deleteCategory(id);
         
-        // ສະແດງ SweetAlert ແຈ້ງເຕືອນສຳເລັດ ຫຼື ໃຊ້ toast ທີ່ມີຢູ່ແລ້ວກໍໄດ້
         Swal.fire({
           title: "ລົບສຳເລັດ!",
-          text: res.data?.message || "ຂໍ້ມູນຖືກລົບเรียบร້ອຍແລ້ວ.",
+          text: res?.message || "ຂໍ້ມູນຖືກລົບຮຽບຮ້ອຍແລ້ວ.",
           icon: "success",
-          confirmButtonColor: "#f97316", // ສີສ້ມ (Tailwind orange-500)
+          confirmButtonColor: "#f97316", 
           customClass: {
             popup: "rounded-2xl font-lao",
           },
@@ -220,7 +219,7 @@ const CategoryPage = () => {
               {isLoading ? (
                 <tr>
                   <td colSpan="3" className="p-8 text-center text-gray-400">
-                    <i className="fas fa-spinner fa-spin mr-2"></i> ກຳລັງໂຫລດຂໍ້ມູນ...
+                    <i className="fas fa-spinner fa-spin mr-2"></i> ກຳລັງໂຫຼດຂໍ້ມູນ...
                   </td>
                 </tr>
               ) : categories.length === 0 ? (
