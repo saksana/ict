@@ -4,13 +4,13 @@ exports.importProducts = async (req, res) => {
   let connection;
 
   try {
-    // 1. ແປງ Input ໃຫ້ເປັນ Array ເเพื่อຮອງຮັບທັງ Object ດຽວ ແລະ Array
+    // 1. ແປງ Input ໃຫ້ເປັນ Array ເພື່ອຮອງຮັບທັງ Object ດຽວ ແລະ Array
     const items = Array.isArray(req.body) ? req.body : [req.body];
 
     if (items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "ກະລຸນາສົ່ງຂໍ້ມູນສິນຄ້າທີ່ຕ້ອງການນຳເຂົ້າ!",
+        message: "ກະລຸນາປ້ອນຂໍ້ມູນສິນຄ້າທີ່ຕ້ອງການນຳເຂົ້າ!",
       });
     }
 
@@ -52,7 +52,7 @@ exports.importProducts = async (req, res) => {
       }
     }
 
-    // 3. ກວດສອບ Serial Number ວ່າມີຄ່າຊ້ຳກັນໃນ Payload ຕົວເອງບໍ
+    // 3. ກວດສອບ Serial Number ວ່າມີຄ່າຊ້ຳກັນໃນ Payload ຕົວເเองບໍ
     const uniquePayloadSNs = new Set(allSerialNumbers);
     if (uniquePayloadSNs.size !== allSerialNumbers.length) {
       return res.status(400).json({
@@ -61,11 +61,11 @@ exports.importProducts = async (req, res) => {
       });
     }
 
-    // 4. ເອົາ Connection ແລະ ເລີ່ມ Transaction
+    // 4. ເอົາ Connection ແລະ ເລີ່ມ Transaction
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // 5. ດຶງຂໍ້ມູນ User ແລະ Product ລ່ວງໜ້າ (Bulk Select) ເພື່ອຫຼຸດຜ່ອນ Query ໃນ Loop
+    // 5. ດຶງຂໍ້ມູນ User ແລະ Product ລ່ວງໜ້າ (Bulk Select) ພ້ອມ LOCK ປ້ອງກັນ Race Condition
     const userIds = [...new Set(items.map((i) => i.user_id))];
     const productIds = [...new Set(items.map((i) => i.product_id))];
 
@@ -120,8 +120,9 @@ exports.importProducts = async (req, res) => {
     const createdImportIds = [];
     const allStockTransactions = [];
     const allSerialValues = [];
+    const stockUpdatesMap = new Map();
 
-    // 7. ວົນ Loop ປະມວນຜົນສ້າງ Data Structure ສຳລັບ Batch Insert
+    // 7. ວົນ Loop ປະມວນຜົນສ້າງ Data Structure ສຳລັບ Bulk Operations
     for (const item of items) {
       const { product_id, quantity, comment, user_id, serial_number } = item;
       const parsedQty = Number.parseInt(quantity, 10);
@@ -142,18 +143,16 @@ exports.importProducts = async (req, res) => {
         user_id,
       ]);
 
-      // ເກັບຂໍ້ມູນ Serial Numbers (ຖ້າສິນຄ້ານັ້ນຕ້ອງການ Serial)
+      // ເກັບຂໍ້ມູນ Serial Numbers (ຖ້າສິນຄ້ານั้นຕ້ອງການ Serial)
       if (product.serial_number === 1 && snList.length > 0) {
         for (const sn of snList) {
           allSerialValues.push([product_id, sn, "IN_STOCK"]);
         }
       }
 
-      // ອັບເດດ Stock Quantity ຂອງ Product ແຕ່ລະໂຕ
-      await connection.query(
-        "UPDATE tb_product SET stock_qty = stock_qty + ? WHERE product_id = ?",
-        [parsedQty, product_id]
-      );
+      // ໂຮມຈຳນວນ Stock ที่ຕ້ອງบວກເພີ່ມຕາມ product_id (ກໍລະນີສົ່ງ product_id ດຽວກันຫຼາຍແຖວ)
+      const currentQty = stockUpdatesMap.get(product_id) || 0;
+      stockUpdatesMap.set(product_id, currentQty + parsedQty);
     }
 
     // 8. ບັນທຶກ Stock Transactions (Bulk Insert)
@@ -164,7 +163,6 @@ exports.importProducts = async (req, res) => {
 
       const [importResult] = await connection.query(sqlInsertStock, [allStockTransactions]);
       
-      // ຄິດໄລ່ insertId ຍ້ອນວ່າເປັນ Bulk Insert
       let firstInsertId = importResult.insertId;
       for (let i = 0; i < allStockTransactions.length; i++) {
         createdImportIds.push(firstInsertId + i);
@@ -175,6 +173,28 @@ exports.importProducts = async (req, res) => {
     if (allSerialValues.length > 0) {
       const sqlSN = `INSERT INTO tb_serial_number (product_id, serial_no, status) VALUES ?`;
       await connection.query(sqlSN, [allSerialValues]);
+    }
+
+    // 10. ອັບເດດ Stock ຂອງ Product ແບບ Bulk Update (CASE ... WHEN) ເພື່ອຄວາມໄວສູງສຸດ
+    const updateCases = [];
+    const updateProductIds = [];
+
+    for (const [prodId, addQty] of stockUpdatesMap.entries()) {
+      updateCases.push(`WHEN product_id = ? THEN stock_qty + ?`);
+      updateProductIds.push(prodId, addQty);
+    }
+
+    if (updateCases.length > 0) {
+      const sqlBulkUpdateStock = `
+        UPDATE tb_product 
+        SET stock_qty = CASE 
+          ${updateCases.join(" ")} 
+          ELSE stock_qty 
+        END 
+        WHERE product_id IN (?)
+      `;
+      updateProductIds.push([...stockUpdatesMap.keys()]);
+      await connection.query(sqlBulkUpdateStock, updateProductIds);
     }
 
     // Commit ເມື່ອທຸກລາຍການສຳເລັດ

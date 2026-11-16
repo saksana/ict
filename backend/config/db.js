@@ -30,7 +30,7 @@ async function initDatabase() {
 
     // 3. ລາຍຊື່ Tables ທີ່ຕ້ອງການສ້າງ
     const tables = [
-      // . Table ຮ້ານຄ້າ (ເພີ່ມໃໝ່)
+      // . Table ຮ້ານຄ້າ(ເພີ່ມໃໝ່)
       `
             CREATE TABLE IF NOT EXISTS tb_shop (
                 shop_id int PRIMARY KEY AUTO_INCREMENT,
@@ -41,7 +41,7 @@ async function initDatabase() {
                 created_at timestamp DEFAULT (now())
             );
         `,
-      `INSERT IGNORE INTO tb_shop(shop_id, shop_name, phone, email, address) VALUES ('1','MY_SHOP','','','');`,
+      `INSERT IGNORE INTO tb_shop(shop_id, shop_name, phone, email, address) VALUES ('1','ICT SOLUTIONS','02055502190','ict1992@gmail.com','ຖະໜົນດົງຈອງ, ບ້ານ ແສງສະຫວ່າງ, ເມືອງ ໄຊເສດຖາ ນະຄອນຫຼວງວຽງຈັນ');`,
       // . ສ້າງ Table ຜູ້ໃຊ້ (User Table)
       `
             CREATE TABLE IF NOT EXISTS tb_user (
@@ -53,7 +53,6 @@ async function initDatabase() {
                 created_at timestamp DEFAULT (now())
             );
         `,
-
       // . ສ້າງ Table ໝວດໝູ່ສິນຄ້າ (Category Table)
       `
             CREATE TABLE IF NOT EXISTS tb_category (
@@ -72,10 +71,10 @@ async function initDatabase() {
             brand_name VARCHAR(50),
             product_name VARCHAR(255),
             serial_number BOOLEAN DEFAULT FALSE,
-            cost_price DECIMAL(10,2) DEFAULT 0,
-            sale_price DECIMAL(10,2) DEFAULT 0,
+            cost_price DECIMAL(12,2) DEFAULT 0,
+            sale_price DECIMAL(12,2) DEFAULT 0,
             stock_qty INT DEFAULT 0,
-            old_price DECIMAL(10,2) DEFAULT 0,
+            old_price DECIMAL(12,2) DEFAULT 0,
             detail TEXT,
             warranty VARCHAR(50),
             image VARCHAR(255),
@@ -97,7 +96,7 @@ async function initDatabase() {
                 phone varchar(20) UNIQUE,
                 points int DEFAULT 0,
                 address text,
-                debt_balance DECIMAL(10,2) DEFAULT 0.00,
+                debt_balance DECIMAL(12,2) DEFAULT 0.00,
                 created_at timestamp DEFAULT (now())
             );
         `,
@@ -118,12 +117,12 @@ async function initDatabase() {
       `
             CREATE TABLE IF NOT EXISTS tb_order (
                 order_id int PRIMARY KEY AUTO_INCREMENT,
-                order_no varchar(20),
+                order_no varchar(20)UNIQUE,
                 customer_id int,
                 user_id int,
-                total_amount decimal(10,2),
-                discount decimal(10,2) DEFAULT 0,
-                net_amount decimal(10,2),
+                total_amount DECIMAL(12,2),
+                discount DECIMAL(12,2) DEFAULT 0,
+                net_amount DECIMAL(12,2),
                 created_at timestamp DEFAULT (now()),
                 status varchar(20),
                 updated_by int,
@@ -149,8 +148,16 @@ async function initDatabase() {
                 order_id int,
                 product_id int,
                 qty int NOT NULL,
-                unit_price decimal(10,2),
-                subtotal decimal(10,2)
+                unit_price DECIMAL(12,2),
+                subtotal DECIMAL(12,2),
+
+              CONSTRAINT fk_orders
+              FOREIGN KEY (order_id) 
+              REFERENCES tb_order(order_id),
+
+              CONSTRAINT fk_products
+              FOREIGN KEY (product_id) 
+              REFERENCES tb_product(product_id)
             );
         `,
       // . Table ການຊຳລະເງິນ (ເພີ່ມໃໝ່)
@@ -159,10 +166,14 @@ async function initDatabase() {
                 payment_id int PRIMARY KEY AUTO_INCREMENT,
                 order_id int,
                 method enum('Cash','QR PromptPay', 'Credit'),
-                amount_paid decimal(10,2),
-                change_amount decimal(10,2) DEFAULT 0,
+                amount_paid DECIMAL(12,2),
+                change_amount DECIMAL(12,2) DEFAULT 0,
                 payment_time timestamp DEFAULT (now()),
-                payment_status varchar(10)
+                payment_status varchar(10),
+
+              CONSTRAINT fk_payment_orders
+              FOREIGN KEY (order_id) 
+              REFERENCES tb_order(order_id)
             );
         `,
       // . Table ບັນທຶກການເຄື່ອນໄຫວສະຕັອກ (ເພີ່ມໃໝ່)
@@ -177,9 +188,13 @@ async function initDatabase() {
             user_id int,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-            CONSTRAINT fk_products
+            CONSTRAINT fk_stock_products
             FOREIGN KEY (product_id) 
             REFERENCES tb_product(product_id),
+
+            CONSTRAINT fk_stock_orders
+            FOREIGN KEY (order_id) 
+            REFERENCES tb_order(order_id),
 
             CONSTRAINT fk_user
             FOREIGN KEY (user_id) 
@@ -198,7 +213,6 @@ async function initDatabase() {
             CONSTRAINT fk_product_serial
             FOREIGN KEY (product_id) 
             REFERENCES tb_product(product_id)
-            
           );
         `,
       `
@@ -207,7 +221,7 @@ async function initDatabase() {
     order_id INT NOT NULL,
     customer_id INT NOT NULL,
     user_id INT,
-    amount_paid DECIMAL(10,2) NOT NULL,
+    amount_paid DECIMAL(12,2) NOT NULL,
     payment_method VARCHAR(50) DEFAULT 'Cash',
     note VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -215,7 +229,7 @@ async function initDatabase() {
     CONSTRAINT fk_debt_order FOREIGN KEY (order_id) REFERENCES tb_order(order_id),
     CONSTRAINT fk_debt_customer FOREIGN KEY (customer_id) REFERENCES tb_customer(customer_id),
     CONSTRAINT fk_debt_user FOREIGN KEY (user_id) REFERENCES tb_user(user_id)
-);
+    );
         `,
     ];
 

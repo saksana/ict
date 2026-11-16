@@ -22,8 +22,8 @@ exports.getAllSuppliers = async (req, res) => {
 // 2. ດຶງຂໍ້ມູນຜູ້ສະໜອງແບບມີ Pagination & Search
 exports.getSuppliers = async (req, res) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(250, Math.max(1, parseInt(req.query.limit) || 10));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(250, Math.max(1, parseInt(req.query.limit, 10) || 10));
     const search = (req.query.search || "").trim();
 
     const offset = (page - 1) * limit;
@@ -52,7 +52,7 @@ exports.getSuppliers = async (req, res) => {
       LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(dataSql, [...queryParams, limit, offset]);
+    const [rows] = await db.query(dataSql, [...queryParams, Number(limit), Number(offset)]);
 
     res.json({
       success: true,
@@ -77,7 +77,6 @@ exports.getSuppliers = async (req, res) => {
 exports.createSupplier = async (req, res) => {
   try {
     const { supplier_name, phone, address, detail } = req.body;
-    //console.log(req.body)
 
     if (!supplier_name || !supplier_name.trim() || !phone || !phone.trim()) {
       return res.status(400).json({
@@ -148,7 +147,6 @@ exports.updateSupplier = async (req, res) => {
   try {
     const { id } = req.params;
     const { supplier_name, phone, address, detail } = req.body;
-    console.log(req.body)
 
     if (!supplier_name || !supplier_name.trim() || !phone || !phone.trim()) {
       return res.status(400).json({
@@ -246,7 +244,7 @@ exports.deleteSupplier = async (req, res) => {
     if (err.code === "ER_ROW_IS_REFERENCED_2") {
       return res.status(400).json({
         success: false,
-        message: "ບໍ່ສາມາດລຶບໄດ້ ເນື່ອງຈາກຂໍ້ມູນຜູ້ສະໜອງນີ້ຖືກໃຊ້ງານຢູ່ (ມີປະວັດການສັ່ງຊື້/ນຳເຂົ້າ)",
+        message: "ບໍ່ສາມາດລຶບໄດ້ ເນື່ອງຈາກຂໍ້ມູນຜູ້ສະໜອງນີ້ຖືກໃຊ້ງານຢູ່ (ມີປະຫວັດການສັ່ງຊື້/ນຳເຂົ້າ)",
       });
     }
 

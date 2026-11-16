@@ -1,18 +1,34 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
 
 const app = express();
 
+// ເປີດໃຫ້ເຂົ້າເຖິງ Folder ຮູບພາບ
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+const limiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 ນາທີ
+  max: 1000, 
+  message: {
+    success: false,
+    message: "ມີການສົ່ງ Request ມາຫຼາຍເກີນໄປຈາກ IP ນີ້, ກະລຸນາລອງໃໝ່ພາຍຫຼັງ (Too many requests)",
+  },
+  standardHeaders: true, 
+  legacyHeaders: false, 
+});
+
 // Middleware
+app.use(helmet());
+app.use(limiter);
 app.use(cors());
 app.use(express.json()); // ອ່ານ JSON ຈາກ Body
 app.use(express.urlencoded({ extended: true }));
 
-// ເປີດໃຫ້ເຂົ້າເຖິງ Folder ຮູບພາບ
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ທົດສອບ Route ພື້ນຖານ
 app.get("/", (req, res) => {

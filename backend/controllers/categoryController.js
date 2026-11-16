@@ -46,13 +46,18 @@ exports.getCategories = async (req, res) => {
 
     // ດຶງຂໍ້ມູນຕາມ Page
     const dataSql = `
-  SELECT * FROM tb_category 
-  ${whereColumn} 
-  ORDER BY category_id DESC 
-  LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
-  `;
+      SELECT * FROM tb_category 
+      ${whereColumn} 
+      ORDER BY category_id DESC 
+      LIMIT ? OFFSET ?
+    `;
 
-    const [rows] = await db.query(dataSql, queryParams);
+    // ເອົາ limit ແລະ offset ຕໍ່ທ້າຍ queryParams
+    const [rows] = await db.query(dataSql, [
+      ...queryParams,
+      Number(limit),
+      Number(offset),
+    ]);
 
     res.json({
       success: true,

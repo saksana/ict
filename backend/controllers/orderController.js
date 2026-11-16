@@ -3,6 +3,7 @@ const db = require("../config/db");
 
 exports.getOrder = async (req, res) => {
   try {
+    // 1. ดຶງຂໍ້ມູນ Orders ທັງໝົດພ້ອມ Payment Info
     const [orders] = await db.query(
       `SELECT o.*, p.method AS payment_method, p.amount_paid, p.change_amount, p.payment_status 
        FROM tb_order o 
@@ -10,21 +11,35 @@ exports.getOrder = async (req, res) => {
        ORDER BY o.order_id DESC`,
     );
 
-    const ordersWithItems = await Promise.all(
-      orders.map(async (order) => {
-        const [items] = await db.query(
-          `SELECT d.*, p.product_name, p.image 
-           FROM tb_order_detail d 
-           LEFT JOIN tb_product p ON d.product_id = p.product_id 
-           WHERE d.order_id = ?`,
-          [order.order_id],
-        );
-        return {
-          ...order,
-          items: items || [],
-        };
-      }),
+    if (orders.length === 0) {
+      return res.json([]);
+    }
+
+    // ເກັບ Order IDs ທັງໝົດເພື່ອດຶງ Items ພ້ອມກັນໃນຄັ້ງດຽວ (Bulk Select) ປ້ອງກັນ N+1 Query
+    const orderIds = orders.map((o) => o.order_id);
+
+    const [allDetails] = await db.query(
+      `SELECT d.*, p.product_name, p.image 
+       FROM tb_order_detail d 
+       LEFT JOIN tb_product p ON d.product_id = p.product_id 
+       WHERE d.order_id IN (?)`,
+      [orderIds],
     );
+
+    // จัดกลุ่ม Items ຕາມ order_id ດ້ວຍ Map ເພື່ອຄວາມໄວສູງສຸດ
+    const itemsMap = new Map();
+    for (const item of allDetails) {
+      if (!itemsMap.has(item.order_id)) {
+        itemsMap.set(item.order_id, []);
+      }
+      itemsMap.get(item.order_id).push(item);
+    }
+
+    // ຜະສົມຂໍ້ມູນ Orders ແລະ Items ເຂົ້າກັນ
+    const ordersWithItems = orders.map((order) => ({
+      ...order,
+      items: itemsMap.get(order.order_id) || [],
+    }));
 
     res.json(ordersWithItems);
   } catch (err) {
@@ -144,6 +159,7 @@ exports.createOrder = async (req, res) => {
     );
 
     res.status(201).json({
+      success: true,
       message: "✅ ການຂາຍສຳເລັດ!",
       order: newOrderRows[0],
     });
@@ -211,7 +227,7 @@ exports.cancelOrder = async (req, res) => {
       ]);
     }
 
-    // 🟢 3. ຖ້າບິນນີ້ເຄີຍ "ຕິດໜີ້" ມາ່ກອນ -> ໃຫ້ຫັກຍອດໜີ້ (`debt_balance`) ອອກຈາກ tb_customer ຄືນນຳ
+    // 🟢 3. ຖ້າບິນນີ້ເຄີຍ "ຕິດໜີ້" ມາກ່ອນ -> ໃຫ້ຫັກຍອດໜີ້ (`debt_balance`) ອອກຈາກ tb_customer ຄືນນຳ
     if (paymentMethod === "credit") {
       await conn.query(
         "UPDATE tb_customer SET debt_balance = GREATEST(0, debt_balance - ?) WHERE customer_id = ?",
@@ -225,7 +241,7 @@ exports.cancelOrder = async (req, res) => {
       [user_id, id],
     );
 
-    // 5. ອັບເດດ Payment Status ເປັນ REFUNDED ຫຼື CANCELLED
+    // 5. ອັບເດດ Payment Status ເປັນ REFUNDED
     await conn.query(
       "UPDATE tb_payment SET payment_status = 'REFUNDED' WHERE order_id = ?",
       [id],
@@ -249,7 +265,7 @@ exports.cancelOrder = async (req, res) => {
 
 exports.payOrderDebt = async (req, res) => {
   const { order_id } = req.params;
-  const { amount_paid, user_id, payment_method, note } = req.body; 
+  const { amount_paid, user_id, payment_method, note } = req.body;
   const conn = await db.getConnection();
 
   try {
@@ -267,7 +283,7 @@ exports.payOrderDebt = async (req, res) => {
        LEFT JOIN tb_payment p ON o.order_id = p.order_id 
        LEFT JOIN tb_customer c ON o.customer_id = c.customer_id 
        WHERE o.order_id = ?`,
-      [order_id]
+      [order_id],
     );
 
     if (orderRows.length === 0) {
@@ -275,60 +291,70 @@ exports.payOrderDebt = async (req, res) => {
     }
 
     const order = orderRows[0];
-    
+
     if (order.payment_status === "paid") {
       throw new Error("ບິນນີ້ໄດ້ຊຳລະເງິນຄົບຖ້ວນແລ້ວ");
     }
 
-    // ດຶງຍອດທີ່ເຄີຍຈ່າຍໄປແລ້ວຂອງບິນນີ້ (ຖ້າມີການຈ່າຍແບບຜ່ອນ/ทยอยຈ່າຍ)
+    // ດຶງຍອດທີ່ເຄີຍຈ່າຍໄປແລ້ວຂອງບິນນີ້
     const [paidHistory] = await conn.query(
       "SELECT IFNULL(SUM(amount_paid), 0) as total_paid FROM tb_debt_payment WHERE order_id = ?",
-      [order_id]
+      [order_id],
     );
     const alreadyPaid = Number(paidHistory[0].total_paid || 0);
     const netAmount = Number(order.net_amount);
     const remainingOrderDebt = netAmount - alreadyPaid;
 
     if (payAmount > remainingOrderDebt) {
-      throw new Error(`ຈຳນວນເງິນຊຳລະ (${payAmount.toLocaleString()}) ຫຼາຍກว่าຍອດໜີ້ຄົງเหลือຂອງບິນນີ້ (${remainingOrderDebt.toLocaleString()})`);
+      throw new Error(
+        `ຈຳນວນເງິນຊຳລະ (${payAmount.toLocaleString()}) ຫຼາຍກວ່າຍອດໜີ້ຄົງเหลือຂອງບິນນີ້ (${remainingOrderDebt.toLocaleString()})`,
+      );
     }
 
     // 2. ບັນທຶກປະຫວັດການຊຳລະໜີ້ລົງ tb_debt_payment
     const [payResult] = await conn.query(
       `INSERT INTO tb_debt_payment (order_id, customer_id, user_id, amount_paid, payment_method, note) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [order_id, order.customer_id, user_id || 1, payAmount, payment_method || "Cash", note || "ຊຳລະໜີ້ຕາມບິນ"]
+      [
+        order_id,
+        order.customer_id,
+        user_id || 1,
+        payAmount,
+        payment_method || "Cash",
+        note || "ຊຳລະໜີ້ຕາມບິນ",
+      ],
     );
 
-    // 3. ຕັດຍອດໜີ້ລວມ (`debt_balance`) ໃນ tb_customer ຂອງລູກຄ້າຄົນນັ້ນ
+    // 3. ຕັດຍອດໜີ້ລວມ (`debt_balance`) ໃນ tb_customer
     await conn.query(
       "UPDATE tb_customer SET debt_balance = GREATEST(0, debt_balance - ?) WHERE customer_id = ?",
-      [payAmount, order.customer_id]
+      [payAmount, order.customer_id],
     );
 
-    // 4. ກວດສອບວ່າຈ່າຍຄົບຕາມ net_amount ແລ້ວ ຫລື ຍັງ? ຖ້າຄົບ ໃຫ້ປ່ຽນ payment_status ເປັນ 'paid' ແລະ status ເປັນ 'COMPLETE'
+    // 4. ກວດສອບວ່າຈ່າຍຄົບຕາມ net_amount ແລ້ວ ຫລື ຍັງ?
     const newTotalPaid = alreadyPaid + payAmount;
     let newPaymentStatus = "unpaid";
     let newOrderStatus = order.status;
 
     if (newTotalPaid >= netAmount) {
       newPaymentStatus = "paid";
-      newOrderStatus = "COMPLETE"; // ປ່ຽນຈາກ PENDING ເປັນ COMPLETE ເມື່ອຊຳລະໜີ້ຄົບ
+      newOrderStatus = "COMPLETE";
     }
 
     await conn.query(
       "UPDATE tb_payment SET payment_status = ? WHERE order_id = ?",
-      [newPaymentStatus, order_id]
+      [newPaymentStatus, order_id],
     );
 
-    await conn.query(
-      "UPDATE tb_order SET status = ? WHERE order_id = ?",
-      [newOrderStatus, order_id]
-    );
+    await conn.query("UPDATE tb_order SET status = ? WHERE order_id = ?", [
+      newOrderStatus,
+      order_id,
+    ]);
 
     await conn.commit();
     res.status(200).json({
-      message: `✅ ຊຳລະໜີ້ບິນ ${order_id} ສຳເລັດ!`,
+      success:true,
+      message: `ຊຳລະໜີ້ບິນ ${order_id} ສຳເລັດ!`,
       remaining_order_debt: netAmount - newTotalPaid,
       payment_status: newPaymentStatus,
       debt_pay_id: payResult.insertId,
@@ -336,7 +362,11 @@ exports.payOrderDebt = async (req, res) => {
   } catch (err) {
     await conn.rollback();
     console.error("Pay Order Debt Error:", err);
-    res.status(400).json({ message: "❌ ບໍ່ສາມາດຊຳລະໜີ້ໄດ້", error: err.message });
+    res.status(400).json({
+      success: false,
+      message: "ບໍ່ສາມາດຊຳລະໜີ້ໄດ້",
+      error: err.message,
+    });
   } finally {
     conn.release();
   }

@@ -52,7 +52,11 @@ exports.getCustomers = async (req, res) => {
     LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(dataSql, [...queryParams, limit, offset]);
+    const [rows] = await db.query(dataSql, [
+      ...queryParams,
+      Number(limit),
+      Number(offset),
+    ]);
 
     res.json({
       success: true,
@@ -231,7 +235,7 @@ exports.deleteCustomer = async (req, res) => {
     // 🟢 1. ກວດສອບກ່ອນວ່າລູກຄ້ານີ້ຍັງມີຍອດໜີ້ຄ້າງຊຳລະ (`debt_balance`) อยู่ຫລືບໍ່
     const [customerRows] = await db.query(
       "SELECT customer_name, debt_balance FROM tb_customer WHERE customer_id = ?",
-      [id]
+      [id],
     );
 
     if (customerRows.length === 0) {
