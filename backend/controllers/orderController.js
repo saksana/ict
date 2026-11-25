@@ -5,10 +5,11 @@ exports.getOrder = async (req, res) => {
   try {
     // 1. ดຶງຂໍ້ມູນ Orders ທັງໝົດພ້ອມ Payment Info
     const [orders] = await db.query(
-      `SELECT o.*, p.method AS payment_method, p.amount_paid, p.change_amount, p.payment_status 
-       FROM tb_order o 
-       LEFT JOIN tb_payment p ON o.order_id = p.order_id 
-       ORDER BY o.order_id DESC`,
+      `SELECT o.*, p.method AS payment_method, p.amount_paid, p.change_amount, p.payment_status, u.fullname 
+      FROM tb_order o 
+      LEFT JOIN tb_payment p ON o.order_id = p.order_id 
+      LEFT JOIN tb_user u ON o.user_id = u.user_id 
+      ORDER BY o.order_id DESC`,
     );
 
     if (orders.length === 0) {
@@ -151,16 +152,17 @@ exports.createOrder = async (req, res) => {
     await conn.commit();
 
     const [newOrderRows] = await db.query(
-      `SELECT o.*, p.method AS payment_method, p.amount_paid, p.change_amount, p.payment_status 
+      `SELECT o.*, u.fullname, p.method AS payment_method, p.amount_paid, p.change_amount, p.payment_status 
        FROM tb_order o 
        LEFT JOIN tb_payment p ON o.order_id = p.order_id 
+       LEFT JOIN tb_user u ON o.user_id = u.user_id
        WHERE o.order_id = ?`,
       [orderId],
     );
 
     res.status(201).json({
       success: true,
-      message: "✅ ການຂາຍສຳເລັດ!",
+      message: "ການຂາຍສຳເລັດ!",
       order: newOrderRows[0],
     });
   } catch (err) {
@@ -353,7 +355,7 @@ exports.payOrderDebt = async (req, res) => {
 
     await conn.commit();
     res.status(200).json({
-      success:true,
+      success: true,
       message: `ຊຳລະໜີ້ບິນ ${order_id} ສຳເລັດ!`,
       remaining_order_debt: netAmount - newTotalPaid,
       payment_status: newPaymentStatus,

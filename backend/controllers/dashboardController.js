@@ -20,7 +20,7 @@ exports.getDashboardStats = async (req, res) => {
         SELECT COUNT(product_id) as total_products FROM tb_product
       `),
       db.query(`
-        SELECT COUNT(customer_id) as total_customers FROM tb_customer
+        SELECT COUNT(customer_id) as total_customers FROM tb_customer WHERE customer_id != 1
       `),
       db.query(`
         SELECT COUNT(product_id) as low_stock_count FROM tb_product WHERE stock_qty <= 5

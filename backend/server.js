@@ -3,10 +3,13 @@ const cors = require("cors");
 const path = require("path");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const morgan = require("morgan");
+
 require("dotenv").config();
 
 
 const app = express();
+app.use(morgan("dev"));
 
 // ເປີດໃຫ້ເຂົ້າເຖິງ Folder ຮູບພາບ
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -47,6 +50,7 @@ app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/import", require("./routes/importRoute"));
 app.use("/api/shop", require("./routes/shopRoute"));
 app.use("/api/dashboard", require("./routes/dashboardRoute"));
+app.use("/api/user", require("./routes/userRoutes"))
 
 app.use((req, res) => {
   res.status(404).json({

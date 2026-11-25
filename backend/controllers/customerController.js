@@ -4,7 +4,7 @@ const db = require("../config/db");
 exports.getAllCustomers = async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT * FROM tb_customer ORDER BY customer_id DESC",
+      "SELECT * FROM tb_customer  ORDER BY customer_id DESC",
     );
     res.json({
       success: true,

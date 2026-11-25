@@ -80,7 +80,7 @@ export default function OrderHistoryModal({
                     isCancelled 
                       ? "border-red-200 bg-red-50/30 opacity-75" 
                       : isUnpaid 
-                        ? "border-amber-200 bg-amber-50/20" 
+                        ? "border-yellow-200 bg-amber-50/20" 
                         : "border-gray-100 hover:border-orange-200"
                   }`}
                 >
@@ -103,7 +103,7 @@ export default function OrderHistoryModal({
                         </span>
                       ) : isUnpaid ? (
                         <span className="bg-red-100 text-red-600 border border-red-200 text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                          <i className="fas fa-user-clock"></i> ค้างຊຳລະ (Unpaid)
+                          <i className="fas fa-user-clock"></i> ຄ້າງຊຳລະ (Unpaid)
                         </span>
                       ) : (
                         <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">

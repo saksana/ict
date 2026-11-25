@@ -140,7 +140,7 @@ export default function Stock() {
     });
   };
 
-  // --- 2. Submit Import (ແກ້ໄຂການຮັບ res message ໃຫ້ถูกต้อง) ---
+
   const handleSubmitImport = async (e) => {
     e.preventDefault();
 
@@ -187,7 +187,7 @@ export default function Stock() {
       quantity: Number(item.quantity),
       comment: item.comment.trim() || "",
       user_id: Number(currentUserId),
-      serial_number: item.serial_number?.length > 0 ? item.serial_number : [],
+      serial_number: item.serial_number?.length > 0 ? item.serial_number : undefined,
     }));
 
     try {

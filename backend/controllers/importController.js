@@ -7,6 +7,8 @@ exports.importProducts = async (req, res) => {
     // 1. ແປງ Input ໃຫ້ເປັນ Array ເພື່ອຮອງຮັບທັງ Object ດຽວ ແລະ Array
     const items = Array.isArray(req.body) ? req.body : [req.body];
 
+    console.log(items)
+
     if (items.length === 0) {
       return res.status(400).json({
         success: false,

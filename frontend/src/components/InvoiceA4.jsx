@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import * as shopApi from "../api/shopApi"; // 👈 ນຳເຂົ້າ shopApi ເພື່ອດຶງຂໍ້ມູນຮ້ານ
 
+
 const InvoiceA4 = React.forwardRef(
   ({ orderData, customer, cartItems }, ref) => {
     const [shopInfo, setShopInfo] = useState({
       shop_name: "MY_SHOP",
-      phone: "",
-      email: "",
-      address: "",
+      phone: "-",
+      email: "-",
+      address: "-",
     });
 
     // ກວດສອບວ່າເປັນບິນຕິດໜີ້ ຫຼື ບໍ່
@@ -93,10 +94,6 @@ const InvoiceA4 = React.forwardRef(
               {customer && (
                 <>
                   <p>
-                    <span className="text-gray-500">ທີ່ຢູ່:</span>{" "}
-                    {customer.address || "-"}
-                  </p>
-                  <p>
                     <span className="text-gray-500">ໂທ / Tel:</span>{" "}
                     {customer.phone || "-"}
                   </p>
@@ -107,7 +104,7 @@ const InvoiceA4 = React.forwardRef(
               <p className="font-black text-gray-400 uppercase tracking-wider text-[10px] mb-1">
                 ການຊຳລະເງິນ / Payment
               </p>
-              <p>
+              <p className={`${isCreditOrder ? "hidden" : ""}`}>
                 <span className="text-gray-500">ຊ່ອງທາງ:</span>{" "}
                 <span className="font-bold text-orange-600">
                   {orderData?.payment_method === "cash"
@@ -118,8 +115,7 @@ const InvoiceA4 = React.forwardRef(
                 </span>
               </p>
               <p>
-                <span className="text-gray-500">ພະນັກງານຂາຍ:</span> Admin (ID:{" "}
-                {orderData?.user_id || 1})
+                <span className="text-gray-500">ພະນັກງານຂາຍ:</span> { orderData.fullname || " -"}
               </p>
               <p>
                 <span className="text-gray-500">ສະຖານະ:</span>{" "}
@@ -129,7 +125,7 @@ const InvoiceA4 = React.forwardRef(
                   }`}
                 >
                   {orderData?.payment_status === "unpaid"
-                    ? "ຄ້າງຊຳລະ (Unpaid - ຕິດໜີ້)"
+                    ? "ຄ້າງຊຳລະ (Unpaid)"
                     : "ຊຳລະແລ້ວ (Paid)"}
                 </span>
               </p>
@@ -224,7 +220,7 @@ const InvoiceA4 = React.forwardRef(
               >
                 <span>
                   {isCreditOrder
-                    ? "ຍອດຄ້າງຊຳລະ (Total Debt):"
+                    ? "ຍອດຄ້າງຊຳລະ:"
                     : "ຍອດຊຳລະສຸດທິ:"}
                 </span>
                 <span>
@@ -255,7 +251,7 @@ const InvoiceA4 = React.forwardRef(
 
           {/* ບ່ອນເຊັນຊື່ (ລຸ່ມສຸດຂອງໜ້າ A4) */}
           <div className="grid grid-cols-2 gap-4 text-center text-xs mt-2 pt-5">
-            <div className="flex flex-col items-center justify-between h-36">
+            <div className="flex flex-col items-center justify-between h-46">
               <p className="text-gray-500">ຜູ້ຊື້ / Customer Signature</p>
               <div className="flex flex-col items-center">
                 <div className="w-48 border-b border-gray-300"></div>
@@ -264,7 +260,7 @@ const InvoiceA4 = React.forwardRef(
                 </p>
               </div>
             </div>
-            <div className="flex flex-col items-center justify-between h-36">
+            <div className="flex flex-col items-center justify-between h-46">
               <p className="text-gray-500">
                 {isCreditOrder
                   ? "ຜູ້ຮຽກເກັບເງິນ / Issuer"

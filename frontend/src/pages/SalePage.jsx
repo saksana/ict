@@ -293,6 +293,7 @@ const SalePage = () => {
         ? Number(selectedCustomerObj.customer_id)
         : 1, // 1 ໝາຍເຖິງລູກຄ້າທົ່ວໄປ
       user_id: user ? user.id : 1, // 🟢 ກວດສອບປ້ອງກັນກໍລະນີ user ເປັນ null
+      fullname: user ? user.fullname : "-",
       total_amount: Number(totalAmount) || 0,
       discount: Number(discount) || 0,
       net_amount: Number(netAmount) || 0,
@@ -317,8 +318,7 @@ const SalePage = () => {
     };
 
     try {
-      const res = await orderApi.createOrder(orderData); 
-      // if (res.status === 201) {
+      const res = await orderApi.createOrder(orderData);
       if (res.success == true) {
         toast.success(res.message || "ບັນທຶກການຂາຍແລ້ວ");
         const createdOrder = res.order || orderData;

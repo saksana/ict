@@ -1,0 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@100..900&display=swap');
+@import "tailwindcss";
+
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Sans Lao', sans-serif;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+*{
+  box-sizing: border-box;
+  
+}
+body{
+
+  font-size: 0.95rem;
+}

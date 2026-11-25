@@ -42,6 +42,7 @@ async function initDatabase() {
             );
         `,
       `INSERT IGNORE INTO tb_shop(shop_id, shop_name, phone, email, address) VALUES ('1','ICT SOLUTIONS','02055502190','ict1992@gmail.com','ຖະໜົນດົງຈອງ, ບ້ານ ແສງສະຫວ່າງ, ເມືອງ ໄຊເສດຖາ ນະຄອນຫຼວງວຽງຈັນ');`,
+
       // . ສ້າງ Table ຜູ້ໃຊ້ (User Table)
       `
             CREATE TABLE IF NOT EXISTS tb_user (
@@ -53,6 +54,8 @@ async function initDatabase() {
                 created_at timestamp DEFAULT (now())
             );
         `,
+        `INSERT IGNORE INTO tb_user(user_id, fullname, username, password, role) VALUES ('1','Admin','admin','$2b$10$R2NePzToJnlgwN3tMtG7We7gQjMSaMK8OF3VC8At8bgHZvcZMiUgO','Admin');`,
+
       // . ສ້າງ Table ໝວດໝູ່ສິນຄ້າ (Category Table)
       `
             CREATE TABLE IF NOT EXISTS tb_category (
@@ -62,32 +65,37 @@ async function initDatabase() {
             );
         `,
 
-      // . ສ້າງ Table ສິນຄ້າ (Product Table)
+      // . ສ້າງ Table ສິນຄ້າ (Product Table) - [ເພີ່ມ Index ເພື່ອຄວາມໄວໃນການຄົ້ນຫາ]
       `
             CREATE TABLE IF NOT EXISTS tb_product (
-            product_id INT PRIMARY KEY AUTO_INCREMENT,
-            barcode VARCHAR(30) UNIQUE,
-            category_id INT,
-            brand_name VARCHAR(50),
-            product_name VARCHAR(255),
-            serial_number BOOLEAN DEFAULT FALSE,
-            cost_price DECIMAL(12,2) DEFAULT 0,
-            sale_price DECIMAL(12,2) DEFAULT 0,
-            stock_qty INT DEFAULT 0,
-            old_price DECIMAL(12,2) DEFAULT 0,
-            detail TEXT,
-            warranty VARCHAR(50),
-            image VARCHAR(255),
-            is_active BOOLEAN DEFAULT TRUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-            CONSTRAINT fk_product_category 
-            FOREIGN KEY (category_id) 
-            REFERENCES tb_category(category_id)
-            ON DELETE RESTRICT 
-            ON UPDATE CASCADE
-);
+                product_id INT PRIMARY KEY AUTO_INCREMENT,
+                barcode VARCHAR(30) UNIQUE,
+                category_id INT,
+                brand_name VARCHAR(50),
+                product_name VARCHAR(255),
+                serial_number BOOLEAN DEFAULT FALSE,
+                cost_price DECIMAL(12,2) DEFAULT 0,
+                sale_price DECIMAL(12,2) DEFAULT 0,
+                stock_qty INT DEFAULT 0,
+                old_price DECIMAL(12,2) DEFAULT 0,
+                detail TEXT,
+                warranty VARCHAR(50),
+                image VARCHAR(255),
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        
+                CONSTRAINT fk_product_category 
+                FOREIGN KEY (category_id) 
+                REFERENCES tb_category(category_id)
+                ON DELETE RESTRICT 
+                ON UPDATE CASCADE,
+
+                INDEX idx_barcode (barcode),
+                INDEX idx_category (category_id),
+                INDEX idx_product_name (product_name)
+            );
         `,
+
       // . Table ລູກຄ້າ (ເພີ່ມໃໝ່)
       `
             CREATE TABLE IF NOT EXISTS tb_customer (
@@ -97,7 +105,9 @@ async function initDatabase() {
                 points int DEFAULT 0,
                 address text,
                 debt_balance DECIMAL(12,2) DEFAULT 0.00,
-                created_at timestamp DEFAULT (now())
+                created_at timestamp DEFAULT (now()),
+
+                INDEX idx_phone (phone)
             );
         `,
       `INSERT IGNORE INTO tb_customer(customer_id, customer_name, phone, points, address) VALUES ('1','ລູກຄ້າທົ່ວໄປ','-','0','-');`,
@@ -113,11 +123,12 @@ async function initDatabase() {
                 created_at timestamp DEFAULT (now())
             );
         `,
-      // . Table ການຂາຍຫຼັກ (Order Header)
+
+      // . Table ການຂາຍຫຼັກ (Order Header) - [ເພີ່ມ Index ສຳລັບ Filter ປະຫວັດການຂາຍ]
       `
             CREATE TABLE IF NOT EXISTS tb_order (
                 order_id int PRIMARY KEY AUTO_INCREMENT,
-                order_no varchar(20)UNIQUE,
+                order_no varchar(20) UNIQUE,
                 customer_id int,
                 user_id int,
                 total_amount DECIMAL(12,2),
@@ -127,17 +138,21 @@ async function initDatabase() {
                 status varchar(20),
                 updated_by int,
 
-              CONSTRAINT fk_customers
-              FOREIGN KEY (customer_id) 
-              REFERENCES tb_customer(customer_id),
+                CONSTRAINT fk_customers
+                FOREIGN KEY (customer_id) 
+                REFERENCES tb_customer(customer_id),
 
-              CONSTRAINT fk_users_add
-              FOREIGN KEY (user_id) 
-              REFERENCES tb_user(user_id),
+                CONSTRAINT fk_users_add
+                FOREIGN KEY (user_id) 
+                REFERENCES tb_user(user_id),
 
-              CONSTRAINT fk_users_update
-              FOREIGN KEY (updated_by) 
-              REFERENCES tb_user(user_id)
+                CONSTRAINT fk_users_update
+                FOREIGN KEY (updated_by) 
+                REFERENCES tb_user(user_id),
+
+                INDEX idx_order_no (order_no),
+                INDEX idx_created_at (created_at),
+                INDEX idx_customer_id (customer_id)
             );
         `,
 
@@ -151,15 +166,20 @@ async function initDatabase() {
                 unit_price DECIMAL(12,2),
                 subtotal DECIMAL(12,2),
 
-              CONSTRAINT fk_orders
-              FOREIGN KEY (order_id) 
-              REFERENCES tb_order(order_id),
+                CONSTRAINT fk_orders
+                FOREIGN KEY (order_id) 
+                REFERENCES tb_order(order_id)
+                ON DELETE CASCADE,
 
-              CONSTRAINT fk_products
-              FOREIGN KEY (product_id) 
-              REFERENCES tb_product(product_id)
+                CONSTRAINT fk_products
+                FOREIGN KEY (product_id) 
+                REFERENCES tb_product(product_id),
+
+                INDEX idx_order_id (order_id),
+                INDEX idx_product_id (product_id)
             );
         `,
+
       // . Table ການຊຳລະເງິນ (ເພີ່ມໃໝ່)
       `
             CREATE TABLE IF NOT EXISTS tb_payment (
@@ -171,12 +191,15 @@ async function initDatabase() {
                 payment_time timestamp DEFAULT (now()),
                 payment_status varchar(10),
 
-              CONSTRAINT fk_payment_orders
-              FOREIGN KEY (order_id) 
-              REFERENCES tb_order(order_id)
+                CONSTRAINT fk_payment_orders
+                FOREIGN KEY (order_id) 
+                REFERENCES tb_order(order_id),
+
+                INDEX idx_order_id (order_id)
             );
         `,
-      // . Table ບັນທຶກການເຄື່ອນໄຫວສະຕັອກ (ເພີ່ມໃໝ່)
+
+      // . Table ບັນທຶກການເຄື່ອນໄຫວສະຕັອກ - [ເພີ່ມ Index ສຳລັບ Stock Monitoring]
       `
           CREATE TABLE IF NOT EXISTS tb_stock_transactions (
             stockt_id int PRIMARY KEY AUTO_INCREMENT,
@@ -198,10 +221,14 @@ async function initDatabase() {
 
             CONSTRAINT fk_user
             FOREIGN KEY (user_id) 
-            REFERENCES tb_user(user_id)
+            REFERENCES tb_user(user_id),
+
+            INDEX idx_product_id (product_id),
+            INDEX idx_created_at (created_at)
           );
         `,
-      // . Table ບັນທຶກການເຄື່ອນໄຫວສະຕັອກ (ເພີ່ມໃໝ່)
+
+      // . Table Serial Number
       `
           CREATE TABLE IF NOT EXISTS tb_serial_number (
             sn_id int PRIMARY KEY AUTO_INCREMENT,
@@ -212,25 +239,33 @@ async function initDatabase() {
             
             CONSTRAINT fk_product_serial
             FOREIGN KEY (product_id) 
-            REFERENCES tb_product(product_id)
+            REFERENCES tb_product(product_id),
+
+            INDEX idx_serial_no (serial_no),
+            INDEX idx_status (status)
           );
         `,
-      `
-    CREATE TABLE IF NOT EXISTS tb_debt_payment (
-    debt_pay_id INT PRIMARY KEY AUTO_INCREMENT,
-    order_id INT NOT NULL,
-    customer_id INT NOT NULL,
-    user_id INT,
-    amount_paid DECIMAL(12,2) NOT NULL,
-    payment_method VARCHAR(50) DEFAULT 'Cash',
-    note VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_debt_order FOREIGN KEY (order_id) REFERENCES tb_order(order_id),
-    CONSTRAINT fk_debt_customer FOREIGN KEY (customer_id) REFERENCES tb_customer(customer_id),
-    CONSTRAINT fk_debt_user FOREIGN KEY (user_id) REFERENCES tb_user(user_id)
-    );
-        `,
+      // . Table ບັນທຶກການຊຳລະໜີ້
+      `
+        CREATE TABLE IF NOT EXISTS tb_debt_payment (
+            debt_pay_id INT PRIMARY KEY AUTO_INCREMENT,
+            order_id INT NOT NULL,
+            customer_id INT NOT NULL,
+            user_id INT,
+            amount_paid DECIMAL(12,2) NOT NULL,
+            payment_method VARCHAR(50) DEFAULT 'Cash',
+            note VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+            CONSTRAINT fk_debt_order FOREIGN KEY (order_id) REFERENCES tb_order(order_id),
+            CONSTRAINT fk_debt_customer FOREIGN KEY (customer_id) REFERENCES tb_customer(customer_id),
+            CONSTRAINT fk_debt_user FOREIGN KEY (user_id) REFERENCES tb_user(user_id),
+
+            INDEX idx_order_id (order_id),
+            INDEX idx_customer_id (customer_id)
+        );
+      `,
     ];
 
     for (const sql of tables) {
